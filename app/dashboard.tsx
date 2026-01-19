@@ -1,7 +1,8 @@
-// app/dashboard.tsx  (or app/(tabs)/dashboard.tsx if using tabs)
+"use client";
 import { useRouter } from "expo-router";
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import {
+    Animated,
     Dimensions,
     Image,
     SafeAreaView,
@@ -16,109 +17,170 @@ const { width } = Dimensions.get("window");
 
 export default function Dashboard() {
   const router = useRouter();
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 600,
+      useNativeDriver: true,
+    }).start();
+  }, []);
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.profileContainer}>
-          <Image
-            source={{ uri: "https://i.pravatar.cc/150?u=cravii" }} // placeholder avatar
-            style={styles.avatar}
-          />
-          <Text style={styles.greeting}>Logoue</Text>
-        </View>
+      {/* Floating orbs background */}
+      <View style={styles.orb1} />
+      <View style={styles.orb2} />
+      <View style={styles.orb3} />
 
-        <TouchableOpacity>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Search Bar - moved down a bit */}
+        <TouchableOpacity style={styles.searchContainer}>
           <Text style={styles.searchIcon}>🔍</Text>
+          <Text style={styles.searchPlaceholder}>
+            Search languages, phrases...
+          </Text>
         </TouchableOpacity>
-      </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Hero Section */}
-        <View style={styles.hero}>
-          <View style={styles.heroTextContainer}>
-            <Text style={styles.heroTitle}>Translatate</Text>
-            <Text style={styles.heroTitle}>Everything</Text>
-          </View>
-
+        {/* Main Action - Translate Now */}
+        <TouchableOpacity
+          style={styles.mainCard}
+          onPress={() => router.push("/translate")}
+          activeOpacity={0.95}
+        >
+          <View style={styles.mainCardOverlay} />
           <Image
             source={{
-              uri: "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=400", // hand holding phone
+              uri: "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=800&q=80",
             }}
-            style={styles.heroImage}
+            style={styles.mainCardBg}
           />
-        </View>
-
-        <TouchableOpacity
-          style={styles.startButton}
-          onPress={() => router.push("/translate")} // ← link to your main translator screen
-        >
-          <Text style={styles.startButtonText}>Start</Text>
-        </TouchableOpacity>
-
-        {/* Cards Section */}
-        <View style={styles.cardsContainer}>
-          <View style={[styles.card, { backgroundColor: "#FF6B6B" }]}>
-            <Text style={styles.cardTitle}>English For{"\n"}Child</Text>
-            <Image
-              source={{
-                uri: "https://images.unsplash.com/photo-1503454537195-1dcabb9d2a9d?w=200", // cute animated boy
-              }}
-              style={styles.cardImage}
-            />
-            <View style={styles.playButton}>
-              <Text style={styles.playIcon}>▶</Text>
+          <View style={styles.mainCardContent}>
+            <Text style={styles.mainCardBadge}>✨ QUICK START</Text>
+            <Text style={styles.mainCardTitle}>Translate</Text>
+            <Text style={styles.mainCardTitle}>Anything Now</Text>
+            <Text style={styles.mainCardSubtitle}>
+              Instant translation in 100+ languages
+            </Text>
+            <View style={styles.mainCardButton}>
+              <Text style={styles.mainCardButtonText}>Get Started</Text>
+              <Text style={styles.mainCardArrow}>→</Text>
             </View>
           </View>
-
-          <View style={[styles.card, { backgroundColor: "#4ECDC4" }]}>
-            <Text style={styles.cardTitle}>The Expert{"\n"}Class</Text>
-            <Image
-              source={{
-                uri: "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=200", // graduation cap
-              }}
-              style={styles.cardImage}
-            />
-            <View style={styles.playButton}>
-              <Text style={styles.playIcon}>▶</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Recent Translations */}
-        <View style={styles.recentHeader}>
-          <Text style={styles.sectionTitle}>Recent Translate</Text>
-          <Text style={styles.seeAll}>See All</Text>
-        </View>
-
-        <TouchableOpacity style={styles.recentItem}>
-          <View style={styles.flagsContainer}>
-            <Image
-              source={{ uri: "https://flagcdn.com/w320/us.png" }}
-              style={styles.smallFlag}
-            />
-            <Image
-              source={{ uri: "https://flagcdn.com/w320/id.png" }}
-              style={styles.smallFlag}
-            />
-          </View>
-          <Text style={styles.recentText}>USA to Indonesians</Text>
         </TouchableOpacity>
 
-        {/* Bottom Navigation (simplified icons) */}
-        <View style={styles.bottomNav}>
-          <TouchableOpacity>
-            <Text style={styles.navIcon}>🎤</Text>
-          </TouchableOpacity>
-          <TouchableOpacity>
-            <Text style={[styles.navIcon, styles.navIconActive]}>🔄</Text>
-          </TouchableOpacity>
-          <TouchableOpacity>
-            <Text style={styles.navIcon}>⚙️</Text>
-          </TouchableOpacity>
+        {/* Popular Languages */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Popular Languages</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.languageScroll}
+          >
+            {[
+              { flag: "🇳🇬", name: "Marghi", code: "mrt" },
+              { flag: "🇺🇸", name: "English", code: "en" },
+              { flag: "🇪🇸", name: "Spanish", code: "es" },
+              { flag: "🇫🇷", name: "French", code: "fr" },
+              { flag: "🇩🇪", name: "German", code: "de" },
+              { flag: "🇨🇳", name: "Chinese", code: "zh" },
+              { flag: "🇯🇵", name: "Japanese", code: "ja" },
+            ].map((lang, i) => (
+              <TouchableOpacity key={i} style={styles.langCard}>
+                <Text style={styles.langFlag}>{lang.flag}</Text>
+                <Text style={styles.langName}>{lang.name}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
+        {/* Features Grid */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Features</Text>
+          <View style={styles.featuresGrid}>
+            <TouchableOpacity
+              style={[styles.featureCard, styles.featurePurple]}
+            >
+              <Text style={styles.featureIcon}>🎤</Text>
+              <Text style={styles.featureTitle}>Voice</Text>
+              <Text style={styles.featureSubtitle}>Speak & translate</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.featureCard, styles.featureBlue]}>
+              <Text style={styles.featureIcon}>📸</Text>
+              <Text style={styles.featureTitle}>Camera</Text>
+              <Text style={styles.featureSubtitle}>Scan & convert</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.featureCard, styles.featureOrange]}
+            >
+              <Text style={styles.featureIcon}>💬</Text>
+              <Text style={styles.featureTitle}>Chat</Text>
+              <Text style={styles.featureSubtitle}>Live conversation</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.featureCard, styles.featureGreen]}>
+              <Text style={styles.featureIcon}>📚</Text>
+              <Text style={styles.featureTitle}>Learn</Text>
+              <Text style={styles.featureSubtitle}>Practice daily</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Recent Activity */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Recent</Text>
+            <TouchableOpacity>
+              <Text style={styles.seeAllText}>View all</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.recentList}>
+            {[
+              { from: "🇺🇸", to: "🇳🇬", text: "Hello → Sannu", time: "2m ago" },
+              { from: "🇳🇬", to: "🇬🇧", text: "Sannu → Hello", time: "1h ago" },
+              { from: "🇫🇷", to: "🇬🇧", text: "Bonjour → Hello", time: "3h ago" },
+            ].map((item, i) => (
+              <TouchableOpacity key={i} style={styles.recentCard}>
+                <View style={styles.recentFlags}>
+                  <Text style={styles.recentFlag}>{item.from}</Text>
+                  <Text style={styles.recentArrow}>→</Text>
+                  <Text style={styles.recentFlag}>{item.to}</Text>
+                </View>
+                <Text style={styles.recentText}>{item.text}</Text>
+                <Text style={styles.recentTime}>{item.time}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
       </ScrollView>
+
+      {/* Simplified Bottom Navigation */}
+      <View style={styles.bottomNavContainer}>
+        <View style={styles.bottomNav}>
+          <TouchableOpacity style={styles.navItem}>
+            <Text style={styles.navIcon}>🏠</Text>
+            <Text style={styles.navLabel}>Home</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.navItem, styles.navItemCenter]}
+            onPress={() => router.push("/translate")}
+          >
+            <View style={styles.centerNavButton}>
+              <Text style={styles.centerNavIcon}>🌐</Text>
+            </View>
+            <Text style={[styles.navLabel, { marginTop: 6 }]}>Translate</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.navItem}>
+            <Text style={styles.navIcon}>👤</Text>
+            <Text style={styles.navLabel}>Profile</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
     </SafeAreaView>
   );
 }
@@ -128,174 +190,338 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#0F0F0F",
   },
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 100,
-  },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-  },
-  profileContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  avatar: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-  },
-  greeting: {
-    color: "#fff",
-    fontSize: 20,
-    fontWeight: "600",
-  },
-  searchIcon: {
-    fontSize: 24,
-    color: "#aaa",
-  },
-
-  hero: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginTop: 20,
-    marginBottom: 24,
-  },
-  heroTextContainer: {
-    flex: 1,
-  },
-  heroTitle: {
-    color: "#fff",
-    fontSize: 32,
-    fontWeight: "bold",
-    lineHeight: 38,
-  },
-  heroImage: {
-    width: 140,
-    height: 180,
-    resizeMode: "contain",
-  },
-
-  startButton: {
-    backgroundColor: "#333",
-    paddingVertical: 16,
-    borderRadius: 30,
-    alignItems: "center",
-    marginBottom: 40,
-    borderWidth: 1,
-    borderColor: "#555",
-  },
-  startButtonText: {
-    color: "#fff",
-    fontSize: 18,
-    fontWeight: "600",
-  },
-
-  cardsContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 40,
-  },
-  card: {
-    width: (width - 60) / 2,
-    height: 180,
-    borderRadius: 20,
-    padding: 16,
-    justifyContent: "space-between",
-    position: "relative",
-    overflow: "hidden",
-  },
-  cardTitle: {
-    color: "#fff",
-    fontSize: 18,
-    fontWeight: "bold",
-    lineHeight: 24,
-  },
-  cardImage: {
-    width: 90,
-    height: 90,
-    alignSelf: "flex-end",
-    borderRadius: 12,
-  },
-  playButton: {
+  orb1: {
     position: "absolute",
-    bottom: 16,
-    left: 16,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    justifyContent: "center",
-    alignItems: "center",
+    width: 300,
+    height: 300,
+    borderRadius: 150,
+    backgroundColor: "#6366F1",
+    top: -100,
+    right: -100,
+    opacity: 0.15,
   },
-  playIcon: {
-    color: "#fff",
-    fontSize: 20,
-    marginLeft: 3,
+  orb2: {
+    position: "absolute",
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: "#8B5CF6",
+    bottom: 100,
+    left: -50,
+    opacity: 0.12,
+  },
+  orb3: {
+    position: "absolute",
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    backgroundColor: "#3B82F6",
+    top: "40%",
+    right: -30,
+    opacity: 0.1,
+  },
+  scrollContent: {
+    paddingBottom: 140,
+    paddingTop: 8,
   },
 
-  recentHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    color: "#fff",
-    fontSize: 20,
-    fontWeight: "600",
-  },
-  seeAll: {
-    color: "#4CAF50",
-    fontSize: 14,
-  },
-  recentItem: {
+  // Search
+  searchContainer: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#1A1A1A",
-    padding: 16,
+    marginHorizontal: 24,
+    marginTop: 16, // ← moved down a bit
+    marginBottom: 32,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
     borderRadius: 16,
-    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#333",
+    shadowColor: "#6366F1",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 3,
   },
-  flagsContainer: {
-    flexDirection: "row",
-    marginRight: 16,
+  searchIcon: {
+    fontSize: 20,
+    marginRight: 12,
   },
-  smallFlag: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    borderWidth: 2,
-    borderColor: "#222",
-    marginLeft: -12,
-  },
-  recentText: {
-    color: "#ddd",
-    fontSize: 16,
+  searchPlaceholder: {
+    fontSize: 15,
+    color: "#666",
   },
 
+  // Main Card
+  mainCard: {
+    marginHorizontal: 24,
+    height: 220,
+    borderRadius: 24,
+    overflow: "hidden",
+    marginBottom: 32,
+    backgroundColor: "#1A1A1A",
+    borderWidth: 1,
+    borderColor: "#333",
+    shadowColor: "#6366F1",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  mainCardBg: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  mainCardOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.5)",
+  },
+  mainCardContent: {
+    flex: 1,
+    padding: 24,
+    justifyContent: "center",
+    backgroundColor: "rgba(99, 102, 241, 0.1)",
+  },
+  mainCardBadge: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#818CF8",
+    letterSpacing: 1,
+    marginBottom: 12,
+  },
+  mainCardTitle: {
+    fontSize: 36,
+    fontWeight: "900",
+    color: "#fff",
+    lineHeight: 40,
+  },
+  mainCardSubtitle: {
+    fontSize: 14,
+    color: "rgba(255,255,255,0.85)",
+    marginTop: 8,
+    marginBottom: 20,
+  },
+  mainCardButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#6366F1",
+    alignSelf: "flex-start",
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+    gap: 8,
+  },
+  mainCardButtonText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#fff",
+  },
+  mainCardArrow: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#fff",
+  },
+
+  // Sections
+  section: {
+    marginBottom: 32,
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 24,
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#fff",
+    paddingHorizontal: 24,
+    marginBottom: 16,
+  },
+  seeAllText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#6366F1",
+  },
+
+  // Popular Languages
+  languageScroll: {
+    paddingHorizontal: 24,
+    gap: 12,
+  },
+  langCard: {
+    backgroundColor: "#1A1A1A",
+    borderWidth: 1,
+    borderColor: "#333",
+    width: 100,
+    height: 100,
+    borderRadius: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#6366F1",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  langFlag: {
+    fontSize: 32,
+    marginBottom: 8,
+  },
+  langName: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#ccc",
+  },
+
+  // Features Grid
+  featuresGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    paddingHorizontal: 24,
+    gap: 12,
+  },
+  featureCard: {
+    width: (width - 60) / 2,
+    padding: 20,
+    borderRadius: 20,
+    borderWidth: 1,
+    backgroundColor: "#1A1A1A",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  featurePurple: {
+    borderColor: "#8B5CF6",
+    shadowColor: "#8B5CF6",
+  },
+  featureBlue: {
+    borderColor: "#3B82F6",
+    shadowColor: "#3B82F6",
+  },
+  featureOrange: {
+    borderColor: "#F97316",
+    shadowColor: "#F97316",
+  },
+  featureGreen: {
+    borderColor: "#10B981",
+    shadowColor: "#10B981",
+  },
+  featureIcon: {
+    fontSize: 32,
+    marginBottom: 12,
+  },
+  featureTitle: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: "#fff",
+    marginBottom: 4,
+  },
+  featureSubtitle: {
+    fontSize: 13,
+    color: "#999",
+  },
+
+  // Recent Activity
+  recentList: {
+    paddingHorizontal: 24,
+    gap: 12,
+  },
+  recentCard: {
+    backgroundColor: "#1A1A1A",
+    borderWidth: 1,
+    borderColor: "#333",
+    padding: 16,
+    borderRadius: 16,
+    shadowColor: "#6366F1",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  recentFlags: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+    gap: 8,
+  },
+  recentFlag: {
+    fontSize: 24,
+  },
+  recentArrow: {
+    fontSize: 16,
+    color: "#666",
+  },
+  recentText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#fff",
+    marginBottom: 4,
+  },
+  recentTime: {
+    fontSize: 12,
+    color: "#666",
+  },
+
+  // Bottom Navigation
+  bottomNavContainer: {
+    position: "absolute",
+    bottom: 24,
+    left: 24,
+    right: 24,
+  },
   bottomNav: {
     flexDirection: "row",
-    justifyContent: "space-around",
+    backgroundColor: "#1A1A1A",
+    borderRadius: 30,
+    borderWidth: 1,
+    borderColor: "#333",
     paddingVertical: 16,
-    backgroundColor: "#111",
-    borderTopWidth: 1,
-    borderTopColor: "#222",
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
+    paddingHorizontal: 24,
+    justifyContent: "space-between",
+    alignItems: "center",
+    shadowColor: "#6366F1",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  navItem: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  navItemCenter: {
+    marginTop: -34,
   },
   navIcon: {
     fontSize: 28,
-    color: "#777",
+    opacity: 0.9,
+    marginBottom: 4,
   },
-  navIconActive: {
-    color: "#4CAF50",
+  navLabel: {
+    fontSize: 12,
+    color: "#aaa",
+    fontWeight: "500",
+  },
+  centerNavButton: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: "#6366F1",
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#6366F1",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.55,
+    shadowRadius: 14,
+    elevation: 12,
+  },
+  centerNavIcon: {
+    fontSize: 34,
+    color: "#ffffff",
   },
 });
