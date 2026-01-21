@@ -14,9 +14,9 @@ import {
     View,
 } from "react-native";
 
-// Public Argos Translate endpoint — free, no API key needed (2026 status)
-// If blocked/slow → try self-hosting LibreTranslate or another mirror
-const TRANSLATE_URL = "https://translate.argosopentech.com/translate";
+// TranslatePlus.io endpoint & your provided hash as API key
+const TRANSLATE_URL = "https://api.translateplus.io/v2/translate";
+const API_KEY = "73e750e113d5dcf08d22d8b4ea5bb0954c078cdb"; // Provided hash - test if it works
 
 const languages = [
   { code: "en", name: "English", flag: "https://flagcdn.com/w320/us.png" },
@@ -41,7 +41,7 @@ export default function TranslateScreen() {
 
   const handleTranslate = async () => {
     if (!sourceText.trim()) {
-      Alert.alert("Empty", "Please enter some text to translate.");
+      Alert.alert("Empty", "Please enter text to translate.");
       return;
     }
 
@@ -53,37 +53,39 @@ export default function TranslateScreen() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "X-API-KEY": API_KEY,
         },
         body: JSON.stringify({
-          q: sourceText,
+          text: sourceText,
           source: sourceLang.code,
           target: targetLang.code,
-          format: "text",
         }),
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HTTP ${response.status}: ${errorText}`);
+        const err = await response.text().catch(() => "");
+        throw new Error(`HTTP ${response.status}: ${err || "Unknown error"}`);
       }
 
       const data = await response.json();
-      setTranslatedText(data.translatedText || "[No translation returned]");
-    } catch (error) {
+      setTranslatedText(
+        data.translation ||
+          data.translations?.translation ||
+          "No translation returned",
+      );
+    } catch (error: any) {
       console.error("Translation error:", error);
-      let msg = "Failed to translate. Try again later.";
-      if (String(error).includes("429")) {
-        msg = "Too many requests — wait a minute and retry.";
-      } else if (
-        String(error).includes("400") ||
-        String(error).includes("Invalid")
-      ) {
-        msg = "Bad request — server may have changed rules.";
-      } else if (String(error).includes("Network")) {
-        msg = "Check your internet connection.";
+      let msg = "Translation failed. Try again.";
+      if (error.message.includes("401") || error.message.includes("403")) {
+        msg =
+          "Invalid or expired API key. Get your own from translateplus.io (free signup for 10k chars/month).";
+      } else if (error.message.includes("429")) {
+        msg = "Rate limit hit — wait a bit (free tier is limited).";
+      } else if (error.message.includes("Network")) {
+        msg = "Network error — check internet.";
       }
       Alert.alert("Error", msg);
-      setTranslatedText("Translation failed...");
+      setTranslatedText("Failed to translate...");
     } finally {
       setLoading(false);
     }
@@ -91,30 +93,22 @@ export default function TranslateScreen() {
 
   const speakText = async (text: string, langCode: string) => {
     if (!text.trim()) return;
-
     try {
       const voices = await Speech.getAvailableVoicesAsync();
-      const preferredVoice =
+      const voice =
         voices.find((v) => v.language.startsWith(langCode)) || voices[0];
-
       await Speech.speak(text, {
         language: langCode,
         pitch: 1.0,
-        rate: langCode === "ha" ? 0.85 : 0.95, // Slightly slower for Hausa clarity
-        voice: preferredVoice?.identifier,
+        rate: langCode === "ha" ? 0.85 : 0.95,
+        voice: voice?.identifier,
       });
     } catch (err) {
-      console.warn("TTS error:", err);
-      Alert.alert(
-        "TTS",
-        "Text-to-speech not available for this language on your device.",
-      );
+      Alert.alert("TTS", "Speech not available for this language.");
     }
   };
 
-  const stopSpeaking = () => {
-    Speech.stop();
-  };
+  const stopSpeaking = () => Speech.stop();
 
   return (
     <SafeAreaView style={styles.container}>
@@ -133,7 +127,6 @@ export default function TranslateScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Language Selector */}
         <View style={styles.languageSelector}>
           <TouchableOpacity
             style={styles.languageButton}
@@ -165,7 +158,6 @@ export default function TranslateScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Source Input Card */}
         <View style={styles.textCard}>
           <TextInput
             style={styles.textInput}
@@ -176,7 +168,6 @@ export default function TranslateScreen() {
             onChangeText={setSourceText}
             textAlignVertical="top"
           />
-
           <View style={styles.cardFooter}>
             <Text style={styles.charCount}>{sourceText.length} / 5000</Text>
             <View style={styles.cardActions}>
@@ -192,7 +183,6 @@ export default function TranslateScreen() {
           </View>
         </View>
 
-        {/* Translation Result Card */}
         <View style={[styles.textCard, styles.translationCard]}>
           {loading ? (
             <ActivityIndicator
@@ -210,7 +200,6 @@ export default function TranslateScreen() {
                       : "Translation will appear here...")}
                 </Text>
               </ScrollView>
-
               <View style={styles.cardFooter}>
                 <Text style={styles.charCount}>
                   {translatedText.length} / 5000
@@ -230,7 +219,6 @@ export default function TranslateScreen() {
           )}
         </View>
 
-        {/* Floating Translate Button */}
         {sourceText.trim() && !loading && (
           <TouchableOpacity
             style={styles.translateButton}
@@ -246,15 +234,8 @@ export default function TranslateScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#f8f9fa",
-  },
-  scrollContent: {
-    padding: 20,
-    paddingBottom: 120,
-  },
-
+  container: { flex: 1, backgroundColor: "#f8f9fa" },
+  scrollContent: { padding: 20, paddingBottom: 120 },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -271,16 +252,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  backIcon: {
-    fontSize: 28,
-    color: "#333",
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#111",
-  },
-
+  backIcon: { fontSize: 28, color: "#333" },
+  headerTitle: { fontSize: 20, fontWeight: "700", color: "#111" },
   languageSelector: {
     flexDirection: "row",
     alignItems: "center",
@@ -309,11 +282,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#ddd",
   },
-  languageText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#222",
-  },
+  languageText: { fontSize: 16, fontWeight: "600", color: "#222" },
   swapButton: {
     width: 48,
     height: 48,
@@ -323,11 +292,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginHorizontal: 12,
   },
-  swapIcon: {
-    fontSize: 24,
-    color: "#fff",
-  },
-
+  swapIcon: { fontSize: 24, color: "#fff" },
   textCard: {
     backgroundColor: "#ffffff",
     borderRadius: 16,
@@ -340,23 +305,10 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 2,
   },
-  translationCard: {
-    backgroundColor: "#f9f9f9",
-  },
-  textInput: {
-    fontSize: 17,
-    color: "#111",
-    lineHeight: 24,
-    minHeight: 110,
-  },
-  translationScroll: {
-    maxHeight: 220,
-  },
-  translatedText: {
-    fontSize: 17,
-    color: "#222",
-    lineHeight: 26,
-  },
+  translationCard: { backgroundColor: "#f9f9f9" },
+  textInput: { fontSize: 17, color: "#111", lineHeight: 24, minHeight: 110 },
+  translationScroll: { maxHeight: 220 },
+  translatedText: { fontSize: 17, color: "#222", lineHeight: 26 },
   cardFooter: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -366,19 +318,9 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: "#eee",
   },
-  charCount: {
-    fontSize: 13,
-    color: "#888",
-  },
-  cardActions: {
-    flexDirection: "row",
-    gap: 20,
-  },
-  actionIcon: {
-    fontSize: 24,
-    color: "#555",
-  },
-
+  charCount: { fontSize: 13, color: "#888" },
+  cardActions: { flexDirection: "row", gap: 20 },
+  actionIcon: { fontSize: 24, color: "#555" },
   translateButton: {
     position: "absolute",
     bottom: 30,
@@ -397,14 +339,6 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 8,
   },
-  translateButtonText: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#fff",
-  },
-  translateButtonIcon: {
-    fontSize: 22,
-    color: "#fff",
-    fontWeight: "bold",
-  },
+  translateButtonText: { fontSize: 18, fontWeight: "700", color: "#fff" },
+  translateButtonIcon: { fontSize: 22, color: "#fff", fontWeight: "bold" },
 });

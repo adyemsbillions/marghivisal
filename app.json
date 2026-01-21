@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "Marghivasal",
-    "slug": "Marghivasal",
+    "name": "Margivasal",
+    "slug": "Margivasal",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
-    "scheme": "marghivasal",
+    "icon": "./assets/images/margivial.png",
+    "scheme": "margivasal",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
@@ -30,7 +30,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
+          "image": "./assets/images/margivial.png",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff",
