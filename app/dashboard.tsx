@@ -1,6 +1,7 @@
 "use client";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
     Animated,
     Dimensions,
@@ -15,16 +16,44 @@ import {
 
 const { width } = Dimensions.get("window");
 
+type TranslationEntry = {
+  fromFlag: string;
+  toFlag: string;
+  text: string;
+  translated: string;
+  time: string; // ISO string
+};
+
 export default function Dashboard() {
   const router = useRouter();
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
+  const [recentTranslations, setRecentTranslations] = useState<
+    TranslationEntry[]
+  >([]);
+
   useEffect(() => {
+    // Fade in animation
     Animated.timing(fadeAnim, {
       toValue: 1,
       duration: 600,
       useNativeDriver: true,
     }).start();
+
+    // Load translation history
+    const loadHistory = async () => {
+      try {
+        const stored = await AsyncStorage.getItem("translationHistory");
+        if (stored) {
+          const parsed = JSON.parse(stored) as TranslationEntry[];
+          setRecentTranslations(parsed);
+        }
+      } catch (error) {
+        console.error("Failed to load translation history:", error);
+      }
+    };
+
+    loadHistory();
   }, []);
 
   return (
@@ -38,7 +67,7 @@ export default function Dashboard() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Search Bar - moved down a bit */}
+        {/* Search Bar */}
         <TouchableOpacity style={styles.searchContainer}>
           <Text style={styles.searchIcon}>🔍</Text>
           <Text style={styles.searchPlaceholder}>
@@ -73,7 +102,7 @@ export default function Dashboard() {
           </View>
         </TouchableOpacity>
 
-        {/* Popular Languages */}
+        {/* Popular Languages - Updated with Hona & Glavda */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Popular Languages</Text>
           <ScrollView
@@ -83,14 +112,17 @@ export default function Dashboard() {
           >
             {[
               { flag: "🇳🇬", name: "Marghi", code: "mrt" },
-              { flag: "🇺🇸", name: "English", code: "en" },
-              { flag: "🇪🇸", name: "Spanish", code: "es" },
-              { flag: "🇫🇷", name: "French", code: "fr" },
-              { flag: "🇩🇪", name: "German", code: "de" },
-              { flag: "🇨🇳", name: "Chinese", code: "zh" },
-              { flag: "🇯🇵", name: "Japanese", code: "ja" },
+              { flag: "🇳🇬", name: "Hona", code: "hwo" },
+              { flag: "🇳🇬", name: "Glavda", code: "glw" },
+              { flag: "🇳🇬", name: "Hausa", code: "ha" },
+              { flag: "🇳🇬", name: "Kanuri", code: "kr" },
             ].map((lang, i) => (
-              <TouchableOpacity key={i} style={styles.langCard}>
+              // Example for one card
+              <TouchableOpacity
+                key={i}
+                style={styles.langCard}
+                onPress={() => router.push("/minority-translate")} // ← add this
+              >
                 <Text style={styles.langFlag}>{lang.flag}</Text>
                 <Text style={styles.langName}>{lang.name}</Text>
               </TouchableOpacity>
@@ -133,31 +165,51 @@ export default function Dashboard() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Recent</Text>
-            <TouchableOpacity>
-              <Text style={styles.seeAllText}>View all</Text>
-            </TouchableOpacity>
-          </View>
-          <View style={styles.recentList}>
-            {[
-              { from: "🇺🇸", to: "🇳🇬", text: "Hello → Sannu", time: "2m ago" },
-              { from: "🇳🇬", to: "🇬🇧", text: "Sannu → Hello", time: "1h ago" },
-              { from: "🇫🇷", to: "🇬🇧", text: "Bonjour → Hello", time: "3h ago" },
-            ].map((item, i) => (
-              <TouchableOpacity key={i} style={styles.recentCard}>
-                <View style={styles.recentFlags}>
-                  <Text style={styles.recentFlag}>{item.from}</Text>
-                  <Text style={styles.recentArrow}>→</Text>
-                  <Text style={styles.recentFlag}>{item.to}</Text>
-                </View>
-                <Text style={styles.recentText}>{item.text}</Text>
-                <Text style={styles.recentTime}>{item.time}</Text>
+            {recentTranslations.length > 0 && (
+              <TouchableOpacity>
+                <Text style={styles.seeAllText}>View all</Text>
               </TouchableOpacity>
-            ))}
+            )}
+          </View>
+
+          <View style={styles.recentList}>
+            {recentTranslations.length === 0 ? (
+              <Text style={styles.emptyRecentText}>
+                No recent translations yet — start translating!
+              </Text>
+            ) : (
+              recentTranslations.map((item, index) => (
+                <TouchableOpacity key={index} style={styles.recentCard}>
+                  <View style={styles.recentFlags}>
+                    <Image
+                      source={{ uri: item.fromFlag }}
+                      style={styles.recentFlagImage}
+                    />
+                    <Text style={styles.recentArrow}>→</Text>
+                    <Image
+                      source={{ uri: item.toFlag }}
+                      style={styles.recentFlagImage}
+                    />
+                  </View>
+                  <Text style={styles.recentText} numberOfLines={1}>
+                    {item.text} → {item.translated}
+                  </Text>
+                  <Text style={styles.recentTime}>
+                    {new Date(item.time).toLocaleDateString([], {
+                      month: "short",
+                      day: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </Text>
+                </TouchableOpacity>
+              ))
+            )}
           </View>
         </View>
       </ScrollView>
 
-      {/* Simplified Bottom Navigation */}
+      {/* Bottom Navigation */}
       <View style={styles.bottomNavContainer}>
         <View style={styles.bottomNav}>
           <TouchableOpacity style={styles.navItem}>
@@ -231,7 +283,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "#1A1A1A",
     marginHorizontal: 24,
-    marginTop: 16, // ← moved down a bit
+    marginTop: 16,
     marginBottom: 32,
     paddingHorizontal: 20,
     paddingVertical: 16,
@@ -337,8 +389,6 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: "700",
     color: "#fff",
-    paddingHorizontal: 24,
-    marginBottom: 16,
   },
   seeAllText: {
     fontSize: 14,
@@ -449,8 +499,12 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     gap: 8,
   },
-  recentFlag: {
-    fontSize: 24,
+  recentFlagImage: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#444",
   },
   recentArrow: {
     fontSize: 16,
@@ -464,7 +518,14 @@ const styles = StyleSheet.create({
   },
   recentTime: {
     fontSize: 12,
+    color: "#888",
+  },
+  emptyRecentText: {
+    fontSize: 15,
     color: "#666",
+    textAlign: "center",
+    paddingVertical: 30,
+    fontStyle: "italic",
   },
 
   // Bottom Navigation

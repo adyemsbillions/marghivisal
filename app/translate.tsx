@@ -1,3 +1,5 @@
+"use client";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import * as Speech from "expo-speech";
 import React, { useState } from "react";
@@ -14,9 +16,11 @@ import {
     View,
 } from "react-native";
 
-// TranslatePlus.io endpoint & your provided hash as API key
+// TranslatePlus.io endpoint & API key
 const TRANSLATE_URL = "https://api.translateplus.io/v2/translate";
-const API_KEY = "73e750e113d5dcf08d22d8b4ea5bb0954c078cdb"; // Provided hash - test if it works
+const API_KEY = "73e750e113d5dcf08d22d8b4ea5bb0954c078cdb"; // Replace with your own key from translateplus.io
+
+const MAX_CHARS = 5000;
 
 const languages = [
   { code: "en", name: "English", flag: "https://flagcdn.com/w320/us.png" },
@@ -39,9 +43,51 @@ export default function TranslateScreen() {
     setTranslatedText(sourceText);
   };
 
+  const saveToHistory = async (
+    fromFlag: string,
+    toFlag: string,
+    fromCode: string,
+    toCode: string,
+    original: string,
+    result: string,
+  ) => {
+    try {
+      const newEntry = {
+        fromFlag,
+        toFlag,
+        fromCode,
+        toCode,
+        text: original.trim(),
+        translated: result.trim(),
+        time: new Date().toISOString(),
+      };
+
+      const existing = await AsyncStorage.getItem("translationHistory");
+      let history = existing ? JSON.parse(existing) : [];
+
+      // Add new entry at the beginning (most recent first)
+      history = [newEntry, ...history];
+
+      // Limit to last 30 entries to prevent storage issues
+      await AsyncStorage.setItem(
+        "translationHistory",
+        JSON.stringify(history.slice(0, 30)),
+      );
+    } catch (e) {
+      console.warn("Failed to save translation history:", e);
+    }
+  };
+
   const handleTranslate = async () => {
-    if (!sourceText.trim()) {
+    const textToTranslate = sourceText.trim();
+
+    if (!textToTranslate) {
       Alert.alert("Empty", "Please enter text to translate.");
+      return;
+    }
+
+    if (textToTranslate.length > MAX_CHARS) {
+      Alert.alert("Too long", `Text exceeds ${MAX_CHARS} characters limit.`);
       return;
     }
 
@@ -56,34 +102,53 @@ export default function TranslateScreen() {
           "X-API-KEY": API_KEY,
         },
         body: JSON.stringify({
-          text: sourceText,
+          text: textToTranslate,
           source: sourceLang.code,
           target: targetLang.code,
         }),
       });
 
       if (!response.ok) {
-        const err = await response.text().catch(() => "");
-        throw new Error(`HTTP ${response.status}: ${err || "Unknown error"}`);
+        const errText = await response.text().catch(() => "Unknown error");
+        throw new Error(`HTTP ${response.status}: ${errText}`);
       }
 
       const data = await response.json();
-      setTranslatedText(
-        data.translation ||
-          data.translations?.translation ||
-          "No translation returned",
+
+      // Correct structure based on TranslatePlus v2 docs
+      const translationResult = data?.translations?.translation;
+
+      if (!translationResult) {
+        throw new Error("No translation returned in response");
+      }
+
+      setTranslatedText(translationResult);
+
+      // Save to history
+      await saveToHistory(
+        sourceLang.flag,
+        targetLang.flag,
+        sourceLang.code,
+        targetLang.code,
+        textToTranslate,
+        translationResult,
       );
     } catch (error: any) {
       console.error("Translation error:", error);
-      let msg = "Translation failed. Try again.";
+
+      let msg = "Translation failed. Please try again.";
       if (error.message.includes("401") || error.message.includes("403")) {
         msg =
-          "Invalid or expired API key. Get your own from translateplus.io (free signup for 10k chars/month).";
+          "Invalid or expired API key. Sign up at translateplus.io for your own key (free tier available).";
       } else if (error.message.includes("429")) {
-        msg = "Rate limit hit — wait a bit (free tier is limited).";
+        msg =
+          "Rate limit reached. Wait a moment and try again (free tier has limits).";
       } else if (error.message.includes("Network")) {
-        msg = "Network error — check internet.";
+        msg = "Network error — please check your internet connection.";
+      } else if (error.message.includes("No translation")) {
+        msg = "Translation service returned empty result.";
       }
+
       Alert.alert("Error", msg);
       setTranslatedText("Failed to translate...");
     } finally {
@@ -93,10 +158,12 @@ export default function TranslateScreen() {
 
   const speakText = async (text: string, langCode: string) => {
     if (!text.trim()) return;
+
     try {
       const voices = await Speech.getAvailableVoicesAsync();
       const voice =
         voices.find((v) => v.language.startsWith(langCode)) || voices[0];
+
       await Speech.speak(text, {
         language: langCode,
         pitch: 1.0,
@@ -104,7 +171,10 @@ export default function TranslateScreen() {
         voice: voice?.identifier,
       });
     } catch (err) {
-      Alert.alert("TTS", "Speech not available for this language.");
+      Alert.alert(
+        "Speech",
+        "Text-to-speech not available for this language or device.",
+      );
     }
   };
 
@@ -167,9 +237,12 @@ export default function TranslateScreen() {
             value={sourceText}
             onChangeText={setSourceText}
             textAlignVertical="top"
+            maxLength={MAX_CHARS}
           />
           <View style={styles.cardFooter}>
-            <Text style={styles.charCount}>{sourceText.length} / 5000</Text>
+            <Text style={styles.charCount}>
+              {sourceText.length} / {MAX_CHARS}
+            </Text>
             <View style={styles.cardActions}>
               <TouchableOpacity
                 onPress={() => speakText(sourceText, sourceLang.code)}
@@ -202,7 +275,7 @@ export default function TranslateScreen() {
               </ScrollView>
               <View style={styles.cardFooter}>
                 <Text style={styles.charCount}>
-                  {translatedText.length} / 5000
+                  {translatedText.length} / {MAX_CHARS}
                 </Text>
                 <View style={styles.cardActions}>
                   <TouchableOpacity
@@ -210,7 +283,15 @@ export default function TranslateScreen() {
                   >
                     <Text style={styles.actionIcon}>🔊</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => {
+                      // You can add clipboard copy here later
+                      Alert.alert(
+                        "Copied",
+                        "Text copied to clipboard (feature coming soon)",
+                      );
+                    }}
+                  >
                     <Text style={styles.actionIcon}>📋</Text>
                   </TouchableOpacity>
                 </View>
