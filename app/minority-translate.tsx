@@ -1,7 +1,7 @@
 "use client";
 import { useRouter } from "expo-router";
 import * as Speech from "expo-speech";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
     ActivityIndicator,
     Alert,
@@ -15,16 +15,19 @@ import {
     View,
 } from "react-native";
 
-// Dictionary (English keys → local)
-const dictionary: Record<
+const API_SUBMIT = "https://margivial.cravii.ng/api/submit-suggestion.php";
+const API_GET_APPROVED =
+  "https://margivial.cravii.ng/api/get-approved-suggestions.php";
+
+// Static fallback dictionary
+const staticDictionary: Record<
   string,
-  { en: string; local: string; lang: "marghi" | "hona" | "glavda" }
+  { en: string; local: string; lang: string }
 > = {
   "good morning": { en: "Good morning", local: "Dargu", lang: "marghi" },
   "how are you": { en: "How are you?", local: "Lapya gu?", lang: "marghi" },
   "thank you": { en: "Thank you", local: "N jiri", lang: "marghi" },
   "good night": { en: "Good night", local: "Abar cara", lang: "marghi" },
-  // Add more as you collect them...
   hello: { en: "Hello", local: "(suggest below)", lang: "hona" },
   beautiful: {
     en: "You look beautiful",
@@ -47,9 +50,35 @@ export default function MinorityTranslate() {
   const [selectedLang, setSelectedLang] = useState(languages[0]);
   const [loading, setLoading] = useState(false);
 
+  // Approved suggestions from server
+  const [approvedSuggestions, setApprovedSuggestions] = useState<any[]>([]);
+
+  // Suggestion form
   const [suggestLocal, setSuggestLocal] = useState("");
   const [suggestEnglish, setSuggestEnglish] = useState("");
   const [suggestContext, setSuggestContext] = useState("");
+  const [suggestSubmitting, setSuggestSubmitting] = useState(false);
+
+  // Fetch approved suggestions when language changes or on mount
+  useEffect(() => {
+    fetchApprovedSuggestions();
+  }, [selectedLang.key]);
+
+  const fetchApprovedSuggestions = async () => {
+    try {
+      const res = await fetch(
+        `${API_GET_APPROVED}?language_key=${selectedLang.key}`,
+      );
+      const data = await res.json();
+
+      if (data.success) {
+        setApprovedSuggestions(data.suggestions || []);
+      }
+    } catch (err) {
+      console.warn("Failed to load approved suggestions:", err);
+      // silent fail — use static dictionary
+    }
+  };
 
   const handleSwap = () => {
     setSourceIsEnglish(!sourceIsEnglish);
@@ -60,7 +89,7 @@ export default function MinorityTranslate() {
 
   const handleLookup = () => {
     const query = sourceText.trim().toLowerCase();
-    if (!query) return Alert.alert("Empty input", "Please type something.");
+    if (!query) return Alert.alert("Empty", "Please type something.");
 
     setLoading(true);
     setTranslatedText("");
@@ -68,21 +97,34 @@ export default function MinorityTranslate() {
     setTimeout(() => {
       let result = "";
 
-      if (sourceIsEnglish) {
-        // English → Local
-        const match = Object.values(dictionary).find(
-          (e) =>
-            e.lang === selectedLang.key && e.en.toLowerCase().includes(query),
-        );
-        result = match ? match.local : "No translation found — suggest below!";
+      // 1. Check approved suggestions first (higher priority)
+      const approvedMatch = approvedSuggestions.find((s) => {
+        if (sourceIsEnglish) {
+          return s.english_meaning?.toLowerCase().includes(query);
+        } else {
+          return s.local_phrase?.toLowerCase().includes(query);
+        }
+      });
+
+      if (approvedMatch) {
+        result = sourceIsEnglish
+          ? approvedMatch.local_phrase
+          : approvedMatch.english_meaning;
       } else {
-        // Local → English
-        const match = Object.values(dictionary).find(
+        // 2. Fallback to static dictionary
+        const staticMatch = Object.values(staticDictionary).find(
           (e) =>
             e.lang === selectedLang.key &&
-            e.local.toLowerCase().includes(query),
+            (sourceIsEnglish
+              ? e.en.toLowerCase().includes(query)
+              : e.local.toLowerCase().includes(query)),
         );
-        result = match ? match.en : "No translation found — suggest below!";
+
+        result = staticMatch
+          ? sourceIsEnglish
+            ? staticMatch.local
+            : staticMatch.en
+          : "No translation found — suggest below!";
       }
 
       setTranslatedText(result);
@@ -92,20 +134,41 @@ export default function MinorityTranslate() {
 
   const speak = (text: string) => {
     if (!text) return;
-    Speech.speak(text, { language: sourceIsEnglish ? "en" : "en" }); // local TTS limited
+    Speech.speak(text, { language: "en" });
   };
 
-  const handleSuggest = () => {
+  const handleSuggest = async () => {
     if (!suggestLocal.trim() || !suggestEnglish.trim()) {
       return Alert.alert("Missing info", "Please fill both fields.");
     }
-    Alert.alert(
-      "Suggestion received!",
-      `For ${selectedLang.name}:\nLocal: ${suggestLocal}\nEnglish: ${suggestEnglish}`,
-    );
-    setSuggestLocal("");
-    setSuggestEnglish("");
-    setSuggestContext("");
+
+    setSuggestSubmitting(true);
+
+    try {
+      const res = await fetch(API_SUBMIT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          language_key: selectedLang.key,
+          local_phrase: suggestLocal.trim(),
+          english_meaning: suggestEnglish.trim(),
+          context: suggestContext.trim() || null,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.error || "Failed to submit");
+
+      Alert.alert("Success!", data.message || "Suggestion sent — thank you!");
+      setSuggestLocal("");
+      setSuggestEnglish("");
+      setSuggestContext("");
+    } catch (err: any) {
+      Alert.alert("Error", err.message || "Could not send suggestion.");
+    } finally {
+      setSuggestSubmitting(false);
+    }
   };
 
   return (
@@ -119,7 +182,7 @@ export default function MinorityTranslate() {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Direction & Language selector */}
+        {/* Direction selector */}
         <View style={styles.selectorContainer}>
           <View style={styles.langBox}>
             <Image
@@ -154,7 +217,7 @@ export default function MinorityTranslate() {
           </View>
         </View>
 
-        {/* Cycle minority language */}
+        {/* Cycle language */}
         <TouchableOpacity
           style={styles.cycleButton}
           onPress={() => {
@@ -163,12 +226,10 @@ export default function MinorityTranslate() {
             setTranslatedText("");
           }}
         >
-          <Text style={styles.cycleText}>
-            Change language: {selectedLang.name}
-          </Text>
+          <Text style={styles.cycleText}>Change: {selectedLang.name}</Text>
         </TouchableOpacity>
 
-        {/* Input */}
+        {/* Input card */}
         <View style={styles.inputCard}>
           <Text style={styles.cardLabel}>
             {sourceIsEnglish ? "English" : selectedLang.name}
@@ -192,7 +253,7 @@ export default function MinorityTranslate() {
           </TouchableOpacity>
         </View>
 
-        {/* Output */}
+        {/* Output card */}
         <View style={styles.outputCard}>
           <Text style={styles.cardLabel}>
             {sourceIsEnglish ? selectedLang.name : "English"}
@@ -202,7 +263,7 @@ export default function MinorityTranslate() {
           ) : (
             <Text style={styles.outputText}>{translatedText || "—"}</Text>
           )}
-          {translatedText && (
+          {translatedText && !translatedText.includes("No") && (
             <TouchableOpacity
               onPress={() => speak(translatedText)}
               style={styles.speakBtn}
@@ -219,21 +280,34 @@ export default function MinorityTranslate() {
 
         {/* Suggestion form */}
         <View style={styles.suggestBox}>
-          <Text style={styles.suggestTitle}>Suggest new phrase</Text>
+          <Text style={styles.suggestTitle}>Suggest New Phrase</Text>
+
           <TextInput
             style={styles.suggestInput}
             placeholder={`${selectedLang.name} phrase`}
             value={suggestLocal}
             onChangeText={setSuggestLocal}
+            editable={!suggestSubmitting}
           />
+
           <TextInput
             style={styles.suggestInput}
             placeholder="English meaning"
             value={suggestEnglish}
             onChangeText={setSuggestEnglish}
+            editable={!suggestSubmitting}
           />
-          <TouchableOpacity style={styles.suggestBtn} onPress={handleSuggest}>
-            <Text style={styles.suggestBtnText}>Send Suggestion</Text>
+
+          <TouchableOpacity
+            style={[styles.suggestBtn, suggestSubmitting && { opacity: 0.6 }]}
+            onPress={handleSuggest}
+            disabled={suggestSubmitting}
+          >
+            {suggestSubmitting ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.suggestBtnText}>Send Suggestion</Text>
+            )}
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -241,7 +315,7 @@ export default function MinorityTranslate() {
   );
 }
 
-// Styles (simplified & matched to your main translate screen feel)
+// Styles remain the same as before
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f8f9fa" },
   header: {
@@ -316,7 +390,7 @@ const styles = StyleSheet.create({
   },
   input: { fontSize: 17, minHeight: 100, textAlignVertical: "top" },
   outputText: { fontSize: 17, lineHeight: 24, color: "#222" },
-  speakBtn: { alignSelf: "flex-end", padding: 8 },
+  speakBtn: { alignSelf: "flex-end", padding: 8, marginTop: 8 },
 
   actionBtn: {
     backgroundColor: "#6366f1",

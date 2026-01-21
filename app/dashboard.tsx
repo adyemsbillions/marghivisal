@@ -134,7 +134,7 @@ export default function Dashboard() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Features</Text>
           <View style={styles.featuresGrid}>
-            <TouchableOpacity
+            {/* <TouchableOpacity
               style={[styles.featureCard, styles.featurePurple]}
             >
               <Text style={styles.featureIcon}>🎤</Text>
@@ -145,15 +145,19 @@ export default function Dashboard() {
               <Text style={styles.featureIcon}>📸</Text>
               <Text style={styles.featureTitle}>Camera</Text>
               <Text style={styles.featureSubtitle}>Scan & convert</Text>
-            </TouchableOpacity>
+            </TouchableOpacity> */}
             <TouchableOpacity
               style={[styles.featureCard, styles.featureOrange]}
+              onPress={() => router.push("/chat")}
             >
               <Text style={styles.featureIcon}>💬</Text>
               <Text style={styles.featureTitle}>Chat</Text>
               <Text style={styles.featureSubtitle}>Live conversation</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.featureCard, styles.featureGreen]}>
+            <TouchableOpacity
+              style={[styles.featureCard, styles.featureGreen]}
+              onPress={() => router.push("/learn")}
+            >
               <Text style={styles.featureIcon}>📚</Text>
               <Text style={styles.featureTitle}>Learn</Text>
               <Text style={styles.featureSubtitle}>Practice daily</Text>
