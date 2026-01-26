@@ -1,18 +1,17 @@
 // screens/WelcomeScreen.tsx
-// (your original code with small fixes + navigation name consistency)
 
 import { useNavigation } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
 import React, { useEffect, useRef } from "react";
 import {
-    Animated,
-    Dimensions,
-    Image,
-    SafeAreaView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Animated,
+  Dimensions,
+  Image,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 const { width } = Dimensions.get("window");
@@ -20,7 +19,7 @@ const { width } = Dimensions.get("window");
 const GO_BUTTON_SIZE = Math.min(width * 0.3, 120);
 
 export default function WelcomeScreen() {
-  const navigation = useNavigation<any>(); // ← added any to avoid TS complaints (or use proper type)
+  const navigation = useNavigation<any>();
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
@@ -50,7 +49,7 @@ export default function WelcomeScreen() {
 
   const handleGoPress = () => {
     console.log("GO button pressed → navigating to Dashboard");
-    navigation.navigate("dashboard"); // ← Must match screen name exactly!
+    navigation.navigate("dashboard"); // Make sure this matches your navigator screen name
   };
 
   const flags = [
@@ -81,6 +80,7 @@ export default function WelcomeScreen() {
       />
 
       <View style={styles.content}>
+        {/* Flags – centered vertically but with space */}
         <Animated.View
           style={[
             styles.flagsContainer,
@@ -114,6 +114,7 @@ export default function WelcomeScreen() {
           ))}
         </Animated.View>
 
+        {/* Title & subtitle */}
         <Animated.View
           style={[
             styles.textContainer,
@@ -132,8 +133,11 @@ export default function WelcomeScreen() {
           </Text>
         </Animated.View>
 
+        {/* GO Button – pushed to bottom with safe spacing */}
         <Animated.View
           style={{
+            marginTop: "auto", // ← this pushes it to the bottom
+            marginBottom: 50, // breathing room above nav bar / home indicator
             opacity: fadeAnim,
             transform: [{ scale: scaleAnim }],
           }}
@@ -175,8 +179,6 @@ export default function WelcomeScreen() {
   );
 }
 
-// ──────────────────────────────────────────────────────────────────────
-// Styles (same as yours)
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -191,15 +193,15 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 20,
+    // Removed justifyContent: 'center' → using marginTop: 'auto' on button instead
   },
   flagsContainer: {
     width: width * 0.85,
     height: width * 0.85,
     position: "relative",
-    marginBottom: 60,
+    marginBottom: 40, // ← reduced from 60 to give more room for text/button
   },
   flag: {
     width: 72,
@@ -228,7 +230,8 @@ const styles = StyleSheet.create({
 
   textContainer: {
     alignItems: "center",
-    marginBottom: 70,
+    marginTop: 20,
+    marginBottom: 60,
   },
   title: {
     color: "#ffffff",

@@ -19,7 +19,7 @@ const API_SUBMIT = "https://margivial.cravii.ng/api/submit-suggestion.php";
 const API_GET_APPROVED =
   "https://margivial.cravii.ng/api/get-approved-suggestions.php";
 
-// Static fallback dictionary
+// Static fallback dictionary (only used if API fails completely)
 const staticDictionary: Record<
   string,
   { en: string; local: string; lang: string }
@@ -36,6 +36,7 @@ const staticDictionary: Record<
   },
 };
 
+// Use exact language_key values from your database
 const languages = [
   { key: "marghi", name: "Marghi", flag: "https://flagcdn.com/w320/ng.png" },
   { key: "hona", name: "Hona", flag: "https://flagcdn.com/w320/ng.png" },
@@ -50,16 +51,16 @@ export default function MinorityTranslate() {
   const [selectedLang, setSelectedLang] = useState(languages[0]);
   const [loading, setLoading] = useState(false);
 
-  // Approved suggestions from server
+  // Approved suggestions from your server
   const [approvedSuggestions, setApprovedSuggestions] = useState<any[]>([]);
 
-  // Suggestion form
+  // Suggestion form states
   const [suggestLocal, setSuggestLocal] = useState("");
   const [suggestEnglish, setSuggestEnglish] = useState("");
   const [suggestContext, setSuggestContext] = useState("");
   const [suggestSubmitting, setSuggestSubmitting] = useState(false);
 
-  // Fetch approved suggestions when language changes or on mount
+  // Fetch approved suggestions when language changes or component mounts
   useEffect(() => {
     fetchApprovedSuggestions();
   }, [selectedLang.key]);
@@ -71,12 +72,17 @@ export default function MinorityTranslate() {
       );
       const data = await res.json();
 
+      console.log("Fetched suggestions for", selectedLang.key, ":", data); // ← Debug
+
       if (data.success) {
         setApprovedSuggestions(data.suggestions || []);
+      } else {
+        console.warn("API returned error:", data.error);
+        setApprovedSuggestions([]);
       }
     } catch (err) {
-      console.warn("Failed to load approved suggestions:", err);
-      // silent fail — use static dictionary
+      console.error("Failed to load approved suggestions:", err);
+      setApprovedSuggestions([]);
     }
   };
 
@@ -97,12 +103,15 @@ export default function MinorityTranslate() {
     setTimeout(() => {
       let result = "";
 
-      // 1. Check approved suggestions first (higher priority)
+      // 1. Try approved suggestions first (community priority)
       const approvedMatch = approvedSuggestions.find((s) => {
+        const en = (s.english_meaning || "").toLowerCase();
+        const local = (s.local_phrase || "").toLowerCase();
+
         if (sourceIsEnglish) {
-          return s.english_meaning?.toLowerCase().includes(query);
+          return en.includes(query) || query.includes(en);
         } else {
-          return s.local_phrase?.toLowerCase().includes(query);
+          return local.includes(query) || query.includes(local);
         }
       });
 
@@ -120,11 +129,11 @@ export default function MinorityTranslate() {
               : e.local.toLowerCase().includes(query)),
         );
 
-        result = staticMatch
-          ? sourceIsEnglish
-            ? staticMatch.local
-            : staticMatch.en
-          : "No translation found — suggest below!";
+        if (staticMatch) {
+          result = sourceIsEnglish ? staticMatch.local : staticMatch.en;
+        } else {
+          result = "No translation found — please suggest it below!";
+        }
       }
 
       setTranslatedText(result);
@@ -239,7 +248,7 @@ export default function MinorityTranslate() {
             placeholder={
               sourceIsEnglish
                 ? "Type English..."
-                : `Type ${selectedLang.name}...`
+                : `Type in ${selectedLang.name}...`
             }
             multiline
             value={sourceText}
@@ -315,7 +324,7 @@ export default function MinorityTranslate() {
   );
 }
 
-// Styles remain the same as before
+// Styles (unchanged)
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f8f9fa" },
   header: {

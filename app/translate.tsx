@@ -4,37 +4,91 @@ import { useRouter } from "expo-router";
 import * as Speech from "expo-speech";
 import React, { useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Image,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Image,
+  Modal,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
-// TranslatePlus.io endpoint & API key
+// ────────────────────────────────────────────────
+// API Endpoints
+// ────────────────────────────────────────────────
 const TRANSLATE_URL = "https://api.translateplus.io/v2/translate";
-const API_KEY = "73e750e113d5dcf08d22d8b4ea5bb0954c078cdb"; // Replace with your own key from translateplus.io
+const TRANSLATE_API_KEY = "73e750e113d5dcf08d22d8b4ea5bb0954c078cdb";
+
+const GEMINI_API_KEY = "AIzaSyDRfTyjqd8t9Z30no-kfpm-rGQEScOeqgQ";
+const GEMINI_URL =
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
+
+const APPROVED_SUGGESTIONS_URL =
+  "https://margivial.cravii.ng/api/get-approved-suggestions.php";
 
 const MAX_CHARS = 5000;
 
 const languages = [
   { code: "en", name: "English", flag: "https://flagcdn.com/w320/us.png" },
-  { code: "id", name: "Indonesia", flag: "https://flagcdn.com/w320/id.png" },
   { code: "ha", name: "Hausa", flag: "https://flagcdn.com/w320/ng.png" },
+  { code: "yo", name: "Yoruba", flag: "https://flagcdn.com/w320/ng.png" },
+  { code: "ig", name: "Igbo", flag: "https://flagcdn.com/w320/ng.png" },
+  {
+    code: "mrt",
+    name: "Marghi",
+    flag: "https://flagcdn.com/w320/ng.png",
+    special: true,
+  },
+  {
+    code: "hwo",
+    name: "Hona",
+    flag: "https://flagcdn.com/w320/ng.png",
+    special: true,
+  },
+  {
+    code: "glw",
+    name: "Glavda",
+    flag: "https://flagcdn.com/w320/ng.png",
+    special: true,
+  },
+  { code: "tiv", name: "Tiv", flag: "https://flagcdn.com/w320/ng.png" },
+  { code: "kr", name: "Kanuri", flag: "https://flagcdn.com/w320/ng.png" },
+  {
+    code: "ff",
+    name: "Fulfulde (Fula)",
+    flag: "https://flagcdn.com/w320/ng.png",
+  },
+  { code: "ibb", name: "Ibibio", flag: "https://flagcdn.com/w320/ng.png" },
+  { code: "efi", name: "Efik", flag: "https://flagcdn.com/w320/ng.png" },
+  { code: "nup", name: "Nupe", flag: "https://flagcdn.com/w320/ng.png" },
+  {
+    code: "ann",
+    name: "Obolo (Andoni)",
+    flag: "https://flagcdn.com/w320/ng.png",
+  },
+  { code: "id", name: "Indonesian", flag: "https://flagcdn.com/w320/id.png" },
+  { code: "es", name: "Spanish", flag: "https://flagcdn.com/w320/es.png" },
+  { code: "fr", name: "French", flag: "https://flagcdn.com/w320/fr.png" },
+  // ... more if needed
 ];
 
 export default function TranslateScreen() {
   const router = useRouter();
+
   const [sourceText, setSourceText] = useState("");
   const [translatedText, setTranslatedText] = useState("");
-  const [sourceLang, setSourceLang] = useState(languages[0]);
-  const [targetLang, setTargetLang] = useState(languages[1]);
+  const [sourceLang, setSourceLang] = useState(languages[0]); // English
+  const [targetLang, setTargetLang] = useState(languages[1]); // Hausa
   const [loading, setLoading] = useState(false);
+
+  const [showSourcePicker, setShowSourcePicker] = useState(false);
+  const [showTargetPicker, setShowTargetPicker] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const handleSwapLanguages = () => {
     setSourceLang(targetLang);
@@ -44,12 +98,12 @@ export default function TranslateScreen() {
   };
 
   const saveToHistory = async (
-    fromFlag: string,
-    toFlag: string,
-    fromCode: string,
-    toCode: string,
-    original: string,
-    result: string,
+    fromFlag,
+    toFlag,
+    fromCode,
+    toCode,
+    original,
+    result,
   ) => {
     try {
       const newEntry = {
@@ -64,146 +118,274 @@ export default function TranslateScreen() {
 
       const existing = await AsyncStorage.getItem("translationHistory");
       let history = existing ? JSON.parse(existing) : [];
-
-      // Add new entry at the beginning (most recent first)
-      history = [newEntry, ...history];
-
-      // Limit to last 30 entries to prevent storage issues
-      await AsyncStorage.setItem(
-        "translationHistory",
-        JSON.stringify(history.slice(0, 30)),
-      );
+      history = [newEntry, ...history].slice(0, 30);
+      await AsyncStorage.setItem("translationHistory", JSON.stringify(history));
     } catch (e) {
-      console.warn("Failed to save translation history:", e);
+      console.warn("History save failed:", e);
     }
   };
 
+  // ────────────────────────────────────────────────
+  // Main translation handler
+  // ────────────────────────────────────────────────
   const handleTranslate = async () => {
-    const textToTranslate = sourceText.trim();
+    const input = sourceText.trim();
+    if (!input) return Alert.alert("Empty", "Please enter text.");
 
-    if (!textToTranslate) {
-      Alert.alert("Empty", "Please enter text to translate.");
-      return;
-    }
-
-    if (textToTranslate.length > MAX_CHARS) {
-      Alert.alert("Too long", `Text exceeds ${MAX_CHARS} characters limit.`);
-      return;
+    if (input.length > MAX_CHARS) {
+      return Alert.alert("Too long", `Max ${MAX_CHARS} characters allowed.`);
     }
 
     setLoading(true);
     setTranslatedText("");
 
-    try {
-      const response = await fetch(TRANSLATE_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-API-KEY": API_KEY,
-        },
-        body: JSON.stringify({
-          text: textToTranslate,
-          source: sourceLang.code,
-          target: targetLang.code,
-        }),
-      });
+    // Detect if either source OR target is a special language
+    const specialCodes = ["mrt", "hwo", "glw"];
+    const isSpecial =
+      specialCodes.includes(sourceLang.code) ||
+      specialCodes.includes(targetLang.code);
 
-      if (!response.ok) {
-        const errText = await response.text().catch(() => "Unknown error");
-        throw new Error(`HTTP ${response.status}: ${errText}`);
+    if (!isSpecial) {
+      // Normal flow: TranslatePlus → Gemini fallback
+      try {
+        const res = await fetch(TRANSLATE_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-API-KEY": TRANSLATE_API_KEY,
+          },
+          body: JSON.stringify({
+            text: input,
+            source: sourceLang.code,
+            target: targetLang.code,
+          }),
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          const result = data?.translations?.translation || "";
+          if (result) {
+            setTranslatedText(result);
+            await saveToHistory(
+              sourceLang.flag,
+              targetLang.flag,
+              sourceLang.code,
+              targetLang.code,
+              input,
+              result,
+            );
+            setLoading(false);
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn("TranslatePlus failed:", err);
       }
 
-      const data = await response.json();
-
-      // Correct structure based on TranslatePlus v2 docs
-      const translationResult = data?.translations?.translation;
-
-      if (!translationResult) {
-        throw new Error("No translation returned in response");
-      }
-
-      setTranslatedText(translationResult);
-
-      // Save to history
-      await saveToHistory(
-        sourceLang.flag,
-        targetLang.flag,
-        sourceLang.code,
-        targetLang.code,
-        textToTranslate,
-        translationResult,
+      // Gemini fallback for normal languages
+      const geminiResult = await translateWithGemini(
+        input,
+        sourceLang.name,
+        targetLang.name,
       );
-    } catch (error: any) {
-      console.error("Translation error:", error);
-
-      let msg = "Translation failed. Please try again.";
-      if (error.message.includes("401") || error.message.includes("403")) {
-        msg =
-          "Invalid or expired API key. Sign up at translateplus.io for your own key (free tier available).";
-      } else if (error.message.includes("429")) {
-        msg =
-          "Rate limit reached. Wait a moment and try again (free tier has limits).";
-      } else if (error.message.includes("Network")) {
-        msg = "Network error — please check your internet connection.";
-      } else if (error.message.includes("No translation")) {
-        msg = "Translation service returned empty result.";
+      if (geminiResult) {
+        setTranslatedText(geminiResult);
+        await saveToHistory(
+          sourceLang.flag,
+          targetLang.flag,
+          sourceLang.code,
+          targetLang.code,
+          input,
+          geminiResult,
+        );
+      } else {
+        setTranslatedText("Translation failed — try again");
       }
+    } else {
+      // Special language logic (Marghi / Hona / Glavda) — both directions
+      const specialCode = specialCodes.includes(targetLang.code)
+        ? targetLang.code
+        : sourceLang.code;
 
-      Alert.alert("Error", msg);
-      setTranslatedText("Failed to translate...");
-    } finally {
-      setLoading(false);
+      const isToSpecial = specialCodes.includes(targetLang.code);
+
+      try {
+        const res = await fetch(
+          `${APPROVED_SUGGESTIONS_URL}?language_key=${specialCode}`,
+        );
+        const data = await res.json();
+
+        console.log("API Response:", data); // ← Debug: check this in console
+
+        if (!data.success || !data.suggestions?.length) {
+          setTranslatedText(
+            `No approved translations yet for ${isToSpecial ? targetLang.name : sourceLang.name}.\nPlease suggest some phrases!`,
+          );
+          setLoading(false);
+          return;
+        }
+
+        // Case-insensitive partial match
+        const lowerInput = input.toLowerCase();
+        const match = data.suggestions.find((s) => {
+          const en = (s.english_meaning || "").toLowerCase();
+          const local = (s.local_phrase || "").toLowerCase();
+          return (
+            en.includes(lowerInput) ||
+            local.includes(lowerInput) ||
+            lowerInput.includes(en) ||
+            lowerInput.includes(local)
+          );
+        });
+
+        if (!match) {
+          setTranslatedText(
+            "No matching approved phrase found.\nTry rephrasing or suggest it!",
+          );
+          setLoading(false);
+          return;
+        }
+
+        // Polish with Gemini
+        const polishPrompt = `
+You are a native ${isToSpecial ? targetLang.name : sourceLang.name} speaker.
+Use this approved pair:
+English: "${match.english_meaning}"
+${isToSpecial ? targetLang.name : sourceLang.name}: "${match.local_phrase}"
+
+Create one natural, fluent sentence in ${isToSpecial ? targetLang.name : sourceLang.name} that fits the user's input:
+"${input}"
+
+Return **only** the final sentence — nothing else.
+        `;
+
+        const geminiRes = await fetch(`${GEMINI_URL}?key=${GEMINI_API_KEY}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: polishPrompt }] }],
+            generationConfig: { temperature: 0.4, maxOutputTokens: 150 },
+          }),
+        });
+
+        if (!geminiRes.ok) {
+          throw new Error(`Gemini polish failed: ${geminiRes.status}`);
+        }
+
+        const geminiData = await geminiRes.json();
+        const polished =
+          geminiData.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+
+        if (polished) {
+          setTranslatedText(polished);
+          await saveToHistory(
+            sourceLang.flag,
+            targetLang.flag,
+            sourceLang.code,
+            targetLang.code,
+            input,
+            polished,
+          );
+        } else {
+          // Raw fallback
+          setTranslatedText(
+            isToSpecial ? match.local_phrase : match.english_meaning,
+          );
+        }
+      } catch (err) {
+        console.error("Special translation error:", err);
+        setTranslatedText("Error loading suggestions — try again");
+      }
     }
+
+    setLoading(false);
   };
 
-  const speakText = async (text: string, langCode: string) => {
+  // ────────────────────────────────────────────────
+  // Rest of the component (speak, modal, UI) unchanged
+  // ────────────────────────────────────────────────
+  const speakText = async (text, langCode) => {
     if (!text.trim()) return;
-
     try {
-      const voices = await Speech.getAvailableVoicesAsync();
-      const voice =
-        voices.find((v) => v.language.startsWith(langCode)) || voices[0];
-
       await Speech.speak(text, {
         language: langCode,
         pitch: 1.0,
         rate: langCode === "ha" ? 0.85 : 0.95,
-        voice: voice?.identifier,
       });
     } catch (err) {
-      Alert.alert(
-        "Speech",
-        "Text-to-speech not available for this language or device.",
-      );
+      Alert.alert("Speech", "TTS not available for this language.");
     }
   };
 
   const stopSpeaking = () => Speech.stop();
 
+  const LanguagePicker = ({ visible, onClose, onSelect, current }) => {
+    const [search, setSearch] = useState("");
+
+    const filtered = languages.filter((l) =>
+      l.name.toLowerCase().includes(search.toLowerCase()),
+    );
+
+    return (
+      <Modal visible={visible} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Select Language</Text>
+
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search language..."
+              value={search}
+              onChangeText={setSearch}
+            />
+
+            <FlatList
+              data={filtered}
+              keyExtractor={(item) => item.code}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[
+                    styles.langItem,
+                    item.code === current.code && styles.langItemSelected,
+                  ]}
+                  onPress={() => {
+                    onSelect(item);
+                    onClose();
+                    setSearch("");
+                  }}
+                >
+                  <Image source={{ uri: item.flag }} style={styles.langFlag} />
+                  <Text style={styles.langName}>{item.name}</Text>
+                </TouchableOpacity>
+              )}
+            />
+
+            <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+              <Text style={styles.closeText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container}>
+      {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.back()}
-        >
+        <TouchableOpacity onPress={() => router.back()}>
           <Text style={styles.backIcon}>←</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Translate</Text>
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        {/* Language Selector */}
         <View style={styles.languageSelector}>
           <TouchableOpacity
             style={styles.languageButton}
-            onPress={() => {
-              const idx = languages.indexOf(sourceLang);
-              setSourceLang(languages[(idx + 1) % languages.length]);
-            }}
+            onPress={() => setShowSourcePicker(true)}
           >
             <Image source={{ uri: sourceLang.flag }} style={styles.flagImage} />
             <Text style={styles.languageText}>{sourceLang.name}</Text>
@@ -218,16 +400,14 @@ export default function TranslateScreen() {
 
           <TouchableOpacity
             style={styles.languageButton}
-            onPress={() => {
-              const idx = languages.indexOf(targetLang);
-              setTargetLang(languages[(idx + 1) % languages.length]);
-            }}
+            onPress={() => setShowTargetPicker(true)}
           >
             <Image source={{ uri: targetLang.flag }} style={styles.flagImage} />
             <Text style={styles.languageText}>{targetLang.name}</Text>
           </TouchableOpacity>
         </View>
 
+        {/* Source Input */}
         <View style={styles.textCard}>
           <TextInput
             style={styles.textInput}
@@ -256,11 +436,12 @@ export default function TranslateScreen() {
           </View>
         </View>
 
+        {/* Translation Result */}
         <View style={[styles.textCard, styles.translationCard]}>
           {loading ? (
             <ActivityIndicator
               size="large"
-              color="#4CAF50"
+              color="#6366f1"
               style={{ marginVertical: 60 }}
             />
           ) : (
@@ -270,7 +451,7 @@ export default function TranslateScreen() {
                   {translatedText ||
                     (sourceText.trim()
                       ? "Press Translate"
-                      : "Translation will appear here...")}
+                      : "Translation appears here...")}
                 </Text>
               </ScrollView>
               <View style={styles.cardFooter}>
@@ -285,11 +466,7 @@ export default function TranslateScreen() {
                   </TouchableOpacity>
                   <TouchableOpacity
                     onPress={() => {
-                      // You can add clipboard copy here later
-                      Alert.alert(
-                        "Copied",
-                        "Text copied to clipboard (feature coming soon)",
-                      );
+                      Alert.alert("Coming soon", "Copy to clipboard feature");
                     }}
                   >
                     <Text style={styles.actionIcon}>📋</Text>
@@ -300,6 +477,7 @@ export default function TranslateScreen() {
           )}
         </View>
 
+        {/* Translate Button */}
         {sourceText.trim() && !loading && (
           <TouchableOpacity
             style={styles.translateButton}
@@ -310,13 +488,27 @@ export default function TranslateScreen() {
           </TouchableOpacity>
         )}
       </ScrollView>
+
+      {/* Pickers */}
+      <LanguagePicker
+        visible={showSourcePicker}
+        onClose={() => setShowSourcePicker(false)}
+        onSelect={setSourceLang}
+        current={sourceLang}
+      />
+      <LanguagePicker
+        visible={showTargetPicker}
+        onClose={() => setShowTargetPicker(false)}
+        onSelect={setTargetLang}
+        current={targetLang}
+      />
     </SafeAreaView>
   );
 }
 
+// Styles remain unchanged
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f8f9fa" },
-  scrollContent: { padding: 20, paddingBottom: 120 },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -327,14 +519,11 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#e0e0e0",
   },
-  backButton: {
-    width: 44,
-    height: 44,
-    justifyContent: "center",
-    alignItems: "center",
-  },
   backIcon: { fontSize: 28, color: "#333" },
   headerTitle: { fontSize: 20, fontWeight: "700", color: "#111" },
+
+  scrollContent: { padding: 20, paddingBottom: 120 },
+
   languageSelector: {
     flexDirection: "row",
     alignItems: "center",
@@ -350,6 +539,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   languageButton: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
@@ -368,12 +558,13 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: "#333",
+    backgroundColor: "#6366f1",
     justifyContent: "center",
     alignItems: "center",
     marginHorizontal: 12,
   },
   swapIcon: { fontSize: 24, color: "#fff" },
+
   textCard: {
     backgroundColor: "#ffffff",
     borderRadius: 16,
@@ -402,19 +593,16 @@ const styles = StyleSheet.create({
   charCount: { fontSize: 13, color: "#888" },
   cardActions: { flexDirection: "row", gap: 20 },
   actionIcon: { fontSize: 24, color: "#555" },
+
   translateButton: {
-    position: "absolute",
-    bottom: 30,
-    left: 24,
-    right: 24,
-    backgroundColor: "#4CAF50",
+    backgroundColor: "#6366f1",
     borderRadius: 16,
     paddingVertical: 18,
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
     gap: 10,
-    shadowColor: "#4CAF50",
+    shadowColor: "#6366f1",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35,
     shadowRadius: 12,
@@ -422,4 +610,50 @@ const styles = StyleSheet.create({
   },
   translateButtonText: { fontSize: 18, fontWeight: "700", color: "#fff" },
   translateButtonIcon: { fontSize: 22, color: "#fff", fontWeight: "bold" },
+
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalContent: {
+    width: "90%",
+    maxHeight: "80%",
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 20,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    marginBottom: 16,
+    textAlign: "center",
+  },
+  searchInput: {
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+    fontSize: 16,
+  },
+  langItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#eee",
+  },
+  langItemSelected: { backgroundColor: "#e6f0ff" },
+  langFlag: { width: 32, height: 32, borderRadius: 16, marginRight: 12 },
+  langName: { fontSize: 16, color: "#222" },
+  closeButton: {
+    marginTop: 16,
+    paddingVertical: 14,
+    backgroundColor: "#6366f1",
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  closeText: { color: "#fff", fontSize: 16, fontWeight: "600" },
 });

@@ -1,11 +1,11 @@
 "use client";
-import * as Clipboard from "expo-clipboard";
 import { useRouter } from "expo-router";
 import * as Speech from "expo-speech";
 import React, { useEffect, useRef, useState } from "react";
 import {
     ActivityIndicator,
     Alert,
+    Clipboard,
     KeyboardAvoidingView,
     Platform,
     SafeAreaView,
@@ -14,12 +14,12 @@ import {
     Text,
     TextInput,
     TouchableOpacity,
-    View
+    View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-// Gemini API Config (2026 working model)
-const GEMINI_API_KEY = "AIzaSyDRfTyjqd8t9Z30no-kfpm-rGQEScOeqgQ";
+// Gemini API Config
+const GEMINI_API_KEY = "AIzaSyA1ZrPX2ZB8cP094_S9Myw561QziZM6gGg";
 const GEMINI_API_URL =
   "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
 
@@ -35,7 +35,7 @@ export default function Chat() {
   const insets = useSafeAreaInsets();
   const scrollViewRef = useRef(null);
 
-  const [selectedLang, setSelectedLang] = useState(languageOptions[3]); // Hausa default
+  const [selectedLang, setSelectedLang] = useState(languageOptions[3]);
   const [messages, setMessages] = useState([
     {
       id: "welcome",
@@ -48,7 +48,6 @@ export default function Chat() {
   const [isTyping, setIsTyping] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
 
-  // Auto-scroll
   useEffect(() => {
     setTimeout(() => {
       scrollViewRef.current?.scrollToEnd({ animated: true });
@@ -70,10 +69,7 @@ export default function Chat() {
     setInputText("");
     setIsTyping(true);
 
-    // Fake typing delay (makes it feel alive)
-    await new Promise((resolve) =>
-      setTimeout(resolve, 1000 + Math.random() * 800),
-    );
+    await new Promise((r) => setTimeout(r, 1000 + Math.random() * 800));
 
     try {
       const botReply = await getGeminiReply(currentInput, selectedLang.name);
@@ -91,7 +87,7 @@ export default function Chat() {
         ...prev,
         {
           id: Date.now().toString(),
-          text: "Sorry, Gemini is having trouble right now. Try again?",
+          text: "Sorry, Gemini is having trouble. Try again?",
           sender: "bot",
           timestamp: new Date().toISOString(),
         },
@@ -104,11 +100,9 @@ export default function Chat() {
   const getGeminiReply = async (userInput, langName) => {
     const systemPrompt = `
 You are a friendly, patient ${langName} language tutor.
-Always detect and respond in the language the user is using or requesting.
-If user writes in ${langName}, reply mostly in ${langName} with gentle corrections if needed.
-If user writes in English, reply in English and offer ${langName} translations/practice.
-Keep replies short, encouraging, and fun. Use emojis 😊.
-Explain grammar/vocabulary briefly when correcting.
+Respond naturally — mix ${langName} and English when helpful.
+Correct mistakes gently with short explanations.
+Encourage the user, keep replies short and fun. Use emojis 😊.
 Recent conversation:
 ${messages
   .slice(-8)
@@ -176,8 +170,8 @@ ${messages
   };
 
   const copyToClipboard = async (text) => {
-    await Clipboard.setStringAsync(text);
-    Alert.alert("Copied", "Message copied to clipboard!");
+    await Clipboard.setString(text);
+    Alert.alert("Copied!", "Message copied to clipboard.");
   };
 
   const cycleLanguage = () => {
@@ -196,7 +190,6 @@ ${messages
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
           <Text style={styles.backIcon}>←</Text>
@@ -228,7 +221,7 @@ ${messages
           {messages.map((msg) => (
             <TouchableOpacity
               key={msg.id}
-              activeOpacity={0.7}
+              activeOpacity={0.8}
               onLongPress={() =>
                 msg.sender === "bot" && copyToClipboard(msg.text)
               }
@@ -267,7 +260,6 @@ ${messages
           )}
         </ScrollView>
 
-        {/* Input bar */}
         <View style={[styles.inputContainer, { paddingBottom: insets.bottom }]}>
           <TextInput
             style={styles.input}
