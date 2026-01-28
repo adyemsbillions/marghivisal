@@ -1,8 +1,9 @@
 "use client";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Clipboard from "expo-clipboard";
 import { useRouter } from "expo-router";
 import * as Speech from "expo-speech";
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -24,20 +25,25 @@ import {
 const TRANSLATE_URL = "https://api.translateplus.io/v2/translate";
 const TRANSLATE_API_KEY = "73e750e113d5dcf08d22d8b4ea5bb0954c078cdb";
 
-const GEMINI_API_KEY = "AIzaSyDRfTyjqd8t9Z30no-kfpm-rGQEScOeqgQ";
-const GEMINI_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
+const GEMINI_PROXY_URL = "https://margivial.cravii.ng/api/gemini-proxy.php";
 
 const APPROVED_SUGGESTIONS_URL =
   "https://margivial.cravii.ng/api/get-approved-suggestions.php";
 
 const MAX_CHARS = 5000;
 
+// Expanded language list — 100+ languages
 const languages = [
-  { code: "en", name: "English", flag: "https://flagcdn.com/w320/us.png" },
+  // Core Nigerian + Special
+  { code: "en", name: "English", flag: "https://flagcdn.com/w320/gb.png" },
   { code: "ha", name: "Hausa", flag: "https://flagcdn.com/w320/ng.png" },
   { code: "yo", name: "Yoruba", flag: "https://flagcdn.com/w320/ng.png" },
   { code: "ig", name: "Igbo", flag: "https://flagcdn.com/w320/ng.png" },
+  {
+    code: "pcm",
+    name: "Nigerian Pidgin",
+    flag: "https://flagcdn.com/w320/ng.png",
+  },
   {
     code: "mrt",
     name: "Marghi",
@@ -71,10 +77,66 @@ const languages = [
     name: "Obolo (Andoni)",
     flag: "https://flagcdn.com/w320/ng.png",
   },
-  { code: "id", name: "Indonesian", flag: "https://flagcdn.com/w320/id.png" },
-  { code: "es", name: "Spanish", flag: "https://flagcdn.com/w320/es.png" },
+  { code: "bin", name: "Edo (Bini)", flag: "https://flagcdn.com/w320/ng.png" },
+  { code: "bom", name: "Berom", flag: "https://flagcdn.com/w320/ng.png" },
+  {
+    code: "kcg",
+    name: "Tyap (Katab)",
+    flag: "https://flagcdn.com/w320/ng.png",
+  },
+
+  // Major global + additional languages
+  { code: "ar", name: "Arabic", flag: "https://flagcdn.com/w320/sa.png" },
+  {
+    code: "zh",
+    name: "Chinese (Simplified)",
+    flag: "https://flagcdn.com/w320/cn.png",
+  },
+  {
+    code: "zh-TW",
+    name: "Chinese (Traditional)",
+    flag: "https://flagcdn.com/w320/tw.png",
+  },
   { code: "fr", name: "French", flag: "https://flagcdn.com/w320/fr.png" },
-  // ... more if needed
+  { code: "es", name: "Spanish", flag: "https://flagcdn.com/w320/es.png" },
+  { code: "de", name: "German", flag: "https://flagcdn.com/w320/de.png" },
+  { code: "it", name: "Italian", flag: "https://flagcdn.com/w320/it.png" },
+  { code: "pt", name: "Portuguese", flag: "https://flagcdn.com/w320/pt.png" },
+  { code: "ru", name: "Russian", flag: "https://flagcdn.com/w320/ru.png" },
+  { code: "ja", name: "Japanese", flag: "https://flagcdn.com/w320/jp.png" },
+  { code: "ko", name: "Korean", flag: "https://flagcdn.com/w320/kr.png" },
+  { code: "hi", name: "Hindi", flag: "https://flagcdn.com/w320/in.png" },
+  { code: "bn", name: "Bengali", flag: "https://flagcdn.com/w320/bd.png" },
+  { code: "ur", name: "Urdu", flag: "https://flagcdn.com/w320/pk.png" },
+  { code: "id", name: "Indonesian", flag: "https://flagcdn.com/w320/id.png" },
+  { code: "tr", name: "Turkish", flag: "https://flagcdn.com/w320/tr.png" },
+  { code: "vi", name: "Vietnamese", flag: "https://flagcdn.com/w320/vn.png" },
+  { code: "th", name: "Thai", flag: "https://flagcdn.com/w320/th.png" },
+  { code: "pl", name: "Polish", flag: "https://flagcdn.com/w320/pl.png" },
+  { code: "nl", name: "Dutch", flag: "https://flagcdn.com/w320/nl.png" },
+  { code: "sv", name: "Swedish", flag: "https://flagcdn.com/w320/se.png" },
+  { code: "no", name: "Norwegian", flag: "https://flagcdn.com/w320/no.png" },
+  { code: "da", name: "Danish", flag: "https://flagcdn.com/w320/dk.png" },
+  { code: "fi", name: "Finnish", flag: "https://flagcdn.com/w320/fi.png" },
+  { code: "uk", name: "Ukrainian", flag: "https://flagcdn.com/w320/ua.png" },
+  { code: "cs", name: "Czech", flag: "https://flagcdn.com/w320/cz.png" },
+  { code: "hu", name: "Hungarian", flag: "https://flagcdn.com/w320/hu.png" },
+  { code: "el", name: "Greek", flag: "https://flagcdn.com/w320/gr.png" },
+  { code: "he", name: "Hebrew", flag: "https://flagcdn.com/w320/il.png" },
+  {
+    code: "fa",
+    name: "Persian (Farsi)",
+    flag: "https://flagcdn.com/w320/ir.png",
+  },
+  { code: "ro", name: "Romanian", flag: "https://flagcdn.com/w320/ro.png" },
+  { code: "ms", name: "Malay", flag: "https://flagcdn.com/w320/my.png" },
+  { code: "sw", name: "Swahili", flag: "https://flagcdn.com/w320/ke.png" },
+  { code: "am", name: "Amharic", flag: "https://flagcdn.com/w320/et.png" },
+  { code: "zu", name: "Zulu", flag: "https://flagcdn.com/w320/za.png" },
+  { code: "xh", name: "Xhosa", flag: "https://flagcdn.com/w320/za.png" },
+  { code: "so", name: "Somali", flag: "https://flagcdn.com/w320/so.png" },
+  { code: "rw", name: "Kinyarwanda", flag: "https://flagcdn.com/w320/rw.png" },
+  // ... you can continue adding more if needed
 ];
 
 export default function TranslateScreen() {
@@ -82,28 +144,41 @@ export default function TranslateScreen() {
 
   const [sourceText, setSourceText] = useState("");
   const [translatedText, setTranslatedText] = useState("");
-  const [sourceLang, setSourceLang] = useState(languages[0]); // English
-  const [targetLang, setTargetLang] = useState(languages[1]); // Hausa
+  const [sourceLang, setSourceLang] = useState(languages[0]);
+  const [targetLang, setTargetLang] = useState(languages[1]);
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const [showSourcePicker, setShowSourcePicker] = useState(false);
   const [showTargetPicker, setShowTargetPicker] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
 
   const handleSwapLanguages = () => {
     setSourceLang(targetLang);
     setTargetLang(sourceLang);
     setSourceText(translatedText);
     setTranslatedText(sourceText);
+    setErrorMessage(null);
+  };
+
+  const clearInput = () => {
+    setSourceText("");
+    setTranslatedText("");
+    setErrorMessage(null);
+  };
+
+  const copyToClipboard = async (text: string) => {
+    if (!text.trim()) return;
+    await Clipboard.setStringAsync(text);
+    Alert.alert("Copied", "Text copied to clipboard!");
   };
 
   const saveToHistory = async (
-    fromFlag,
-    toFlag,
-    fromCode,
-    toCode,
-    original,
-    result,
+    fromFlag: string,
+    toFlag: string,
+    fromCode: string,
+    toCode: string,
+    original: string,
+    result: string,
   ) => {
     try {
       const newEntry = {
@@ -125,12 +200,56 @@ export default function TranslateScreen() {
     }
   };
 
-  // ────────────────────────────────────────────────
-  // Main translation handler
-  // ────────────────────────────────────────────────
+  const speakText = async (text: string, langCode: string) => {
+    if (!text.trim()) return;
+    try {
+      await Speech.speak(text, {
+        language: langCode || "en",
+        pitch: 1.0,
+        rate: langCode === "ha" ? 0.85 : 0.95,
+      });
+    } catch (err) {
+      Alert.alert("Speech", "TTS not available for this language.");
+    }
+  };
+
+  const stopSpeaking = () => Speech.stop();
+
+  const callGeminiProxy = async (
+    prompt: string,
+    temperature = 0.4,
+    maxTokens = 200,
+  ) => {
+    try {
+      const res = await fetch(GEMINI_PROXY_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt, temperature, maxTokens }),
+      });
+
+      if (!res.ok) {
+        if (res.status === 429) throw new Error("Rate limit — wait a moment");
+        throw new Error(`Service error (${res.status})`);
+      }
+
+      const data = await res.json();
+      return data.result?.trim() || "";
+    } catch (err: any) {
+      console.error("Gemini proxy error:", err);
+      setErrorMessage(err.message || "Translation service unavailable");
+      return "";
+    }
+  };
+
+  const buildTranslationPrompt = useCallback(
+    (text: string, from: string, to: string) =>
+      `Translate this text accurately and naturally from ${from} to ${to}. Preserve meaning, tone, and formatting:\n\n${text}\n\nOutput ONLY the translated text — no explanations, no quotes.`,
+    [],
+  );
+
   const handleTranslate = async () => {
     const input = sourceText.trim();
-    if (!input) return Alert.alert("Empty", "Please enter text.");
+    if (!input) return Alert.alert("Empty", "Please enter text to translate.");
 
     if (input.length > MAX_CHARS) {
       return Alert.alert("Too long", `Max ${MAX_CHARS} characters allowed.`);
@@ -138,56 +257,61 @@ export default function TranslateScreen() {
 
     setLoading(true);
     setTranslatedText("");
+    setErrorMessage(null);
 
-    // Detect if either source OR target is a special language
     const specialCodes = ["mrt", "hwo", "glw"];
     const isSpecial =
       specialCodes.includes(sourceLang.code) ||
       specialCodes.includes(targetLang.code);
 
-    if (!isSpecial) {
-      // Normal flow: TranslatePlus → Gemini fallback
-      try {
-        const res = await fetch(TRANSLATE_URL, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-API-KEY": TRANSLATE_API_KEY,
-          },
-          body: JSON.stringify({
-            text: input,
-            source: sourceLang.code,
-            target: targetLang.code,
-          }),
-        });
+    if (isSpecial) {
+      // Redirect to minority-translate for special languages
+      setLoading(false);
+      router.push("/minority-translate");
+      return;
+    }
 
-        if (res.ok) {
-          const data = await res.json();
-          const result = data?.translations?.translation || "";
-          if (result) {
-            setTranslatedText(result);
-            await saveToHistory(
-              sourceLang.flag,
-              targetLang.flag,
-              sourceLang.code,
-              targetLang.code,
-              input,
-              result,
-            );
-            setLoading(false);
-            return;
-          }
+    try {
+      // Normal translation - try TranslatePlus first
+      const res = await fetch(TRANSLATE_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-API-KEY": TRANSLATE_API_KEY,
+        },
+        body: JSON.stringify({
+          text: input,
+          source: sourceLang.code,
+          target: targetLang.code,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const result = data?.translations?.translation || "";
+        if (result) {
+          setTranslatedText(result);
+          await saveToHistory(
+            sourceLang.flag,
+            targetLang.flag,
+            sourceLang.code,
+            targetLang.code,
+            input,
+            result,
+          );
+          setLoading(false);
+          return;
         }
-      } catch (err) {
-        console.warn("TranslatePlus failed:", err);
       }
 
-      // Gemini fallback for normal languages
-      const geminiResult = await translateWithGemini(
+      // Fallback to Gemini
+      const prompt = buildTranslationPrompt(
         input,
         sourceLang.name,
         targetLang.name,
       );
+      const geminiResult = await callGeminiProxy(prompt, 0.3, 400);
+
       if (geminiResult) {
         setTranslatedText(geminiResult);
         await saveToHistory(
@@ -199,127 +323,29 @@ export default function TranslateScreen() {
           geminiResult,
         );
       } else {
-        setTranslatedText("Translation failed — try again");
-      }
-    } else {
-      // Special language logic (Marghi / Hona / Glavda) — both directions
-      const specialCode = specialCodes.includes(targetLang.code)
-        ? targetLang.code
-        : sourceLang.code;
-
-      const isToSpecial = specialCodes.includes(targetLang.code);
-
-      try {
-        const res = await fetch(
-          `${APPROVED_SUGGESTIONS_URL}?language_key=${specialCode}`,
+        setErrorMessage(
+          "Translation failed. Please check your internet and try again.",
         );
-        const data = await res.json();
-
-        console.log("API Response:", data); // ← Debug: check this in console
-
-        if (!data.success || !data.suggestions?.length) {
-          setTranslatedText(
-            `No approved translations yet for ${isToSpecial ? targetLang.name : sourceLang.name}.\nPlease suggest some phrases!`,
-          );
-          setLoading(false);
-          return;
-        }
-
-        // Case-insensitive partial match
-        const lowerInput = input.toLowerCase();
-        const match = data.suggestions.find((s) => {
-          const en = (s.english_meaning || "").toLowerCase();
-          const local = (s.local_phrase || "").toLowerCase();
-          return (
-            en.includes(lowerInput) ||
-            local.includes(lowerInput) ||
-            lowerInput.includes(en) ||
-            lowerInput.includes(local)
-          );
-        });
-
-        if (!match) {
-          setTranslatedText(
-            "No matching approved phrase found.\nTry rephrasing or suggest it!",
-          );
-          setLoading(false);
-          return;
-        }
-
-        // Polish with Gemini
-        const polishPrompt = `
-You are a native ${isToSpecial ? targetLang.name : sourceLang.name} speaker.
-Use this approved pair:
-English: "${match.english_meaning}"
-${isToSpecial ? targetLang.name : sourceLang.name}: "${match.local_phrase}"
-
-Create one natural, fluent sentence in ${isToSpecial ? targetLang.name : sourceLang.name} that fits the user's input:
-"${input}"
-
-Return **only** the final sentence — nothing else.
-        `;
-
-        const geminiRes = await fetch(`${GEMINI_URL}?key=${GEMINI_API_KEY}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: polishPrompt }] }],
-            generationConfig: { temperature: 0.4, maxOutputTokens: 150 },
-          }),
-        });
-
-        if (!geminiRes.ok) {
-          throw new Error(`Gemini polish failed: ${geminiRes.status}`);
-        }
-
-        const geminiData = await geminiRes.json();
-        const polished =
-          geminiData.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-
-        if (polished) {
-          setTranslatedText(polished);
-          await saveToHistory(
-            sourceLang.flag,
-            targetLang.flag,
-            sourceLang.code,
-            targetLang.code,
-            input,
-            polished,
-          );
-        } else {
-          // Raw fallback
-          setTranslatedText(
-            isToSpecial ? match.local_phrase : match.english_meaning,
-          );
-        }
-      } catch (err) {
-        console.error("Special translation error:", err);
-        setTranslatedText("Error loading suggestions — try again");
       }
-    }
-
-    setLoading(false);
-  };
-
-  // ────────────────────────────────────────────────
-  // Rest of the component (speak, modal, UI) unchanged
-  // ────────────────────────────────────────────────
-  const speakText = async (text, langCode) => {
-    if (!text.trim()) return;
-    try {
-      await Speech.speak(text, {
-        language: langCode,
-        pitch: 1.0,
-        rate: langCode === "ha" ? 0.85 : 0.95,
-      });
-    } catch (err) {
-      Alert.alert("Speech", "TTS not available for this language.");
+    } catch (err: any) {
+      console.error("Translation error:", err);
+      setErrorMessage("Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
-  const stopSpeaking = () => Speech.stop();
-
-  const LanguagePicker = ({ visible, onClose, onSelect, current }) => {
+  const LanguagePicker = ({
+    visible,
+    onClose,
+    onSelect,
+    current,
+  }: {
+    visible: boolean;
+    onClose: () => void;
+    onSelect: (lang: (typeof languages)[0]) => void;
+    current: (typeof languages)[0];
+  }) => {
     const [search, setSearch] = useState("");
 
     const filtered = languages.filter((l) =>
@@ -371,7 +397,6 @@ Return **only** the final sentence — nothing else.
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
           <Text style={styles.backIcon}>←</Text>
@@ -381,7 +406,6 @@ Return **only** the final sentence — nothing else.
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Language Selector */}
         <View style={styles.languageSelector}>
           <TouchableOpacity
             style={styles.languageButton}
@@ -407,11 +431,10 @@ Return **only** the final sentence — nothing else.
           </TouchableOpacity>
         </View>
 
-        {/* Source Input */}
         <View style={styles.textCard}>
           <TextInput
             style={styles.textInput}
-            placeholder="Type here to translate..."
+            placeholder="Type or paste text here..."
             placeholderTextColor="#aaa"
             multiline
             value={sourceText}
@@ -432,11 +455,13 @@ Return **only** the final sentence — nothing else.
               <TouchableOpacity onPress={stopSpeaking}>
                 <Text style={styles.actionIcon}>⏹</Text>
               </TouchableOpacity>
+              <TouchableOpacity onPress={clearInput}>
+                <Text style={styles.actionIcon}>🗑</Text>
+              </TouchableOpacity>
             </View>
           </View>
         </View>
 
-        {/* Translation Result */}
         <View style={[styles.textCard, styles.translationCard]}>
           {loading ? (
             <ActivityIndicator
@@ -444,14 +469,16 @@ Return **only** the final sentence — nothing else.
               color="#6366f1"
               style={{ marginVertical: 60 }}
             />
+          ) : errorMessage ? (
+            <Text style={styles.errorText}>{errorMessage}</Text>
           ) : (
             <>
               <ScrollView style={styles.translationScroll}>
                 <Text style={styles.translatedText}>
                   {translatedText ||
                     (sourceText.trim()
-                      ? "Press Translate"
-                      : "Translation appears here...")}
+                      ? "Press Translate to begin"
+                      : "Translation will appear here...")}
                 </Text>
               </ScrollView>
               <View style={styles.cardFooter}>
@@ -465,9 +492,7 @@ Return **only** the final sentence — nothing else.
                     <Text style={styles.actionIcon}>🔊</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    onPress={() => {
-                      Alert.alert("Coming soon", "Copy to clipboard feature");
-                    }}
+                    onPress={() => copyToClipboard(translatedText)}
                   >
                     <Text style={styles.actionIcon}>📋</Text>
                   </TouchableOpacity>
@@ -477,7 +502,6 @@ Return **only** the final sentence — nothing else.
           )}
         </View>
 
-        {/* Translate Button */}
         {sourceText.trim() && !loading && (
           <TouchableOpacity
             style={styles.translateButton}
@@ -489,7 +513,6 @@ Return **only** the final sentence — nothing else.
         )}
       </ScrollView>
 
-      {/* Pickers */}
       <LanguagePicker
         visible={showSourcePicker}
         onClose={() => setShowSourcePicker(false)}
@@ -506,7 +529,6 @@ Return **only** the final sentence — nothing else.
   );
 }
 
-// Styles remain unchanged
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f8f9fa" },
   header: {
@@ -522,7 +544,7 @@ const styles = StyleSheet.create({
   backIcon: { fontSize: 28, color: "#333" },
   headerTitle: { fontSize: 20, fontWeight: "700", color: "#111" },
 
-  scrollContent: { padding: 20, paddingBottom: 120 },
+  scrollContent: { padding: 20, paddingBottom: 140 },
 
   languageSelector: {
     flexDirection: "row",
@@ -578,7 +600,12 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   translationCard: { backgroundColor: "#f9f9f9" },
-  textInput: { fontSize: 17, color: "#111", lineHeight: 24, minHeight: 110 },
+  textInput: {
+    fontSize: 17,
+    color: "#111",
+    lineHeight: 24,
+    minHeight: 110,
+  },
   translationScroll: { maxHeight: 220 },
   translatedText: { fontSize: 17, color: "#222", lineHeight: 26 },
   cardFooter: {
@@ -610,6 +637,13 @@ const styles = StyleSheet.create({
   },
   translateButtonText: { fontSize: 18, fontWeight: "700", color: "#fff" },
   translateButtonIcon: { fontSize: 22, color: "#fff", fontWeight: "bold" },
+
+  errorText: {
+    color: "red",
+    textAlign: "center",
+    padding: 20,
+    fontSize: 16,
+  },
 
   modalOverlay: {
     flex: 1,

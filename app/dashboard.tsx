@@ -205,7 +205,10 @@ export default function Dashboard() {
           </View>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.navItem}>
+        <TouchableOpacity
+          style={styles.navItem}
+          onPress={() => router.push("/profile")}
+        >
           <Text style={styles.navIcon}>👤</Text>
           <Text style={styles.navLabel}>Profile</Text>
         </TouchableOpacity>
