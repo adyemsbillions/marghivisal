@@ -1,8 +1,11 @@
+// Dashboard screen
 "use client";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
+  ActivityIndicator,
+  Alert,
   Animated,
   Dimensions,
   Image,
@@ -24,12 +27,21 @@ type TranslationEntry = {
   time: string;
 };
 
+type User = {
+  full_name: string;
+  email: string;
+  country: string;
+};
+
 export default function Dashboard() {
   const router = useRouter();
   const fadeAnim = useRef(new Animated.Value(0)).current;
+
   const [recentTranslations, setRecentTranslations] = useState<
     TranslationEntry[]
   >([]);
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     Animated.timing(fadeAnim, {
@@ -38,20 +50,52 @@ export default function Dashboard() {
       useNativeDriver: true,
     }).start();
 
-    const loadHistory = async () => {
+    const loadData = async () => {
       try {
+        // Load user from storage
+        const storedUser = await AsyncStorage.getItem("user");
+        if (storedUser) {
+          setUser(JSON.parse(storedUser));
+        }
+
+        // Load translation history
         const stored = await AsyncStorage.getItem("translationHistory");
         if (stored) {
           const parsed = JSON.parse(stored) as TranslationEntry[];
           setRecentTranslations(parsed.slice(0, 5));
         }
       } catch (error) {
-        console.error("Failed to load translation history:", error);
+        console.error("Failed to load data:", error);
+      } finally {
+        setLoading(false);
       }
     };
 
-    loadHistory();
+    loadData();
   }, []);
+
+  const handleLogout = async () => {
+    Alert.alert("Log Out", "Are you sure you want to log out?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Log Out",
+        style: "destructive",
+        onPress: async () => {
+          await AsyncStorage.removeItem("user");
+          setUser(null);
+          router.replace("/log");
+        },
+      },
+    ]);
+  };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <ActivityIndicator size="large" color="#6366F1" style={{ flex: 1 }} />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -62,13 +106,40 @@ export default function Dashboard() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        {/* User Greeting / Profile Section */}
+        <View style={styles.profileSection}>
+          {user ? (
+            <View style={styles.profileCard}>
+              <Text style={styles.greeting}>
+                Welcome back, {user.full_name.split(" ")[0]}!
+              </Text>
+              <Text style={styles.userDetail}>📧 {user.email}</Text>
+              <Text style={styles.userDetail}>📍 {user.country}</Text>
+
+              <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
+                <Text style={styles.logoutText}>Log Out</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.profileCard}>
+              <Text style={styles.greeting}>Hello there!</Text>
+              <Text style={styles.userDetail}>
+                Sign in to access your profile and saved translations
+              </Text>
+              <TouchableOpacity
+                style={styles.loginBtn}
+                onPress={() => router.push("/log")}
+              >
+                <Text style={styles.loginBtnText}>Sign In</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+
         {/* Main Call-to-Action Card */}
         <TouchableOpacity
           style={styles.mainCard}
-          onPress={() => {
-            // console.log("Main Get Started pressed → navigating to /translate");
-            router.push("/translate");
-          }}
+          onPress={() => router.push("/translate")}
           activeOpacity={0.9}
         >
           <Image
@@ -92,7 +163,7 @@ export default function Dashboard() {
 
         {/* Popular Languages Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Popular Languages</Text>
+          <Text style={styles.sectionTitle}>More Languages</Text>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -106,7 +177,7 @@ export default function Dashboard() {
               { flag: "🇳🇬", name: "Kanuri", code: "kr" },
             ].map((lang, index) => (
               <TouchableOpacity
-                key={lang.code || index} // better to use code if unique
+                key={lang.code || index}
                 style={styles.langCard}
                 onPress={() => router.push("/minority-translate")}
               >
@@ -243,9 +314,60 @@ const styles = StyleSheet.create({
     opacity: 0.12,
   },
   scrollContent: {
-    paddingBottom: 120,
+    paddingBottom: 140,
     paddingTop: 20,
   },
+
+  // ── New Profile Section ─────────────────────────────────────
+  profileSection: {
+    marginBottom: 32,
+  },
+  profileCard: {
+    backgroundColor: "#1A1A1A",
+    borderRadius: 20,
+    padding: 20,
+    marginHorizontal: 24,
+    borderWidth: 1,
+    borderColor: "#333",
+    alignItems: "center",
+  },
+  greeting: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#ffffff",
+    marginBottom: 12,
+  },
+  userDetail: {
+    fontSize: 15,
+    color: "#cccccc",
+    marginVertical: 4,
+  },
+  logoutBtn: {
+    marginTop: 16,
+    backgroundColor: "#ef4444",
+    paddingVertical: 10,
+    paddingHorizontal: 28,
+    borderRadius: 12,
+  },
+  logoutText: {
+    color: "#ffffff",
+    fontWeight: "600",
+    fontSize: 15,
+  },
+  loginBtn: {
+    marginTop: 16,
+    backgroundColor: "#6366F1",
+    paddingVertical: 12,
+    paddingHorizontal: 32,
+    borderRadius: 12,
+  },
+  loginBtnText: {
+    color: "#ffffff",
+    fontWeight: "700",
+    fontSize: 16,
+  },
+
+  // ── Existing styles (unchanged) ─────────────────────────────
   mainCard: {
     marginHorizontal: 24,
     height: 200,

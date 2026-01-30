@@ -23,53 +23,54 @@ export default function Chat() {
           <Text style={styles.backIcon}>←</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Language Chat</Text>
-        <View style={{ width: 60 }} /> {/* spacer for symmetry */}
+        <View style={{ width: 60 }} />
       </View>
 
       <ScrollView
         contentContainerStyle={[
-          styles.contentContainer,
-          { paddingBottom: insets.bottom + 40 },
+          styles.scrollContent,
+          { paddingBottom: insets.bottom + 60 },
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.comingSoonContainer}>
-          <Text style={styles.comingSoonEmoji}>🚀</Text>
+        <View style={styles.card}>
+          <Text style={styles.emoji}>🚀</Text>
 
-          <Text style={styles.comingSoonTitle}>Coming Soon!</Text>
+          <Text style={styles.title}>Coming Soon!</Text>
 
-          <Text style={styles.comingSoonText}>
+          <Text style={styles.description}>
             Interactive language practice chat with voice support is under
-            development.
+            active development.
           </Text>
 
-          <Text style={styles.comingSoonSubtitle}>Features you'll get:</Text>
+          <Text style={styles.subtitle}>What you'll get:</Text>
 
-          <View style={styles.featuresList}>
-            <Text style={styles.featureItem}>
+          <View style={styles.features}>
+            <Text style={styles.feature}>
               • Real-time conversation in Hausa, Yoruba, Igbo + more
             </Text>
-            <Text style={styles.featureItem}>
-              • Gentle corrections & encouragement
+            <Text style={styles.feature}>
+              • Gentle corrections & positive encouragement
             </Text>
-            <Text style={styles.featureItem}>
-              • Voice input & speech output
+            <Text style={styles.feature}>
+              • Voice input & natural speech output
             </Text>
-            <Text style={styles.featureItem}>
-              • Switch between Nigerian languages easily
+            <Text style={styles.feature}>
+              • Easy language switching mid-conversation
             </Text>
           </View>
 
-          <Text style={styles.comingSoonFooter}>
-            We're working hard to make it fun and helpful for language learners!
-            😊
+          <Text style={styles.footerText}>
+            We're building something fun, helpful and culturally rich for
+            language learners 😊
           </Text>
 
           <TouchableOpacity
-            style={styles.backButton}
+            style={styles.primaryButton}
+            activeOpacity={0.8}
             onPress={() => router.back()}
           >
-            <Text style={styles.backButtonText}>Go Back</Text>
+            <Text style={styles.buttonText}>Go Back</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -80,7 +81,7 @@ export default function Chat() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f8f9fa",
+    backgroundColor: "#f9fafb",
   },
   header: {
     flexDirection: "row",
@@ -89,87 +90,103 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     backgroundColor: "#ffffff",
-    borderBottomWidth: 1,
-    borderBottomColor: "#e0e0e0",
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "#e5e7eb",
   },
   backIcon: {
-    fontSize: 28,
-    color: "#333",
+    fontSize: 32,
+    color: "#374151",
+    padding: 4,
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: "700",
-    color: "#111",
+    color: "#111827",
+    letterSpacing: -0.2,
   },
 
-  contentContainer: {
+  scrollContent: {
     flexGrow: 1,
     justifyContent: "center",
-    alignItems: "center",
     paddingHorizontal: 24,
   },
 
-  comingSoonContainer: {
+  card: {
     alignItems: "center",
-    paddingVertical: 60,
-    maxWidth: 340,
+    backgroundColor: "#ffffff",
+    borderRadius: 24,
+    paddingVertical: 48,
+    paddingHorizontal: 28,
+    marginVertical: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: "#f1f5f9",
+    maxWidth: 380,
+    alignSelf: "center",
   },
-  comingSoonEmoji: {
-    fontSize: 80,
-    marginBottom: 20,
-  },
-  comingSoonTitle: {
-    fontSize: 32,
-    fontWeight: "bold",
-    color: "#111",
+
+  emoji: {
+    fontSize: 72,
     marginBottom: 16,
   },
-  comingSoonText: {
-    fontSize: 18,
-    color: "#444",
+  title: {
+    fontSize: 32,
+    fontWeight: "800",
+    color: "#111827",
+    marginBottom: 12,
+    letterSpacing: -0.5,
+  },
+  description: {
+    fontSize: 17,
+    color: "#4b5563",
     textAlign: "center",
     lineHeight: 26,
     marginBottom: 32,
   },
-  comingSoonSubtitle: {
+  subtitle: {
     fontSize: 20,
-    fontWeight: "600",
-    color: "#333",
+    fontWeight: "700",
+    color: "#1f2937",
     marginBottom: 16,
   },
-  featuresList: {
+  features: {
     alignSelf: "stretch",
     marginBottom: 32,
   },
-  featureItem: {
+  feature: {
     fontSize: 16,
-    color: "#555",
-    marginVertical: 6,
-    lineHeight: 24,
+    color: "#4b5563",
+    lineHeight: 26,
+    marginVertical: 4,
   },
-  comingSoonFooter: {
+  footerText: {
     fontSize: 16,
-    color: "#666",
+    color: "#6b7280",
     textAlign: "center",
-    lineHeight: 24,
+    lineHeight: 26,
     marginBottom: 40,
   },
 
-  backButton: {
+  primaryButton: {
     backgroundColor: "#6366f1",
-    borderRadius: 16,
-    paddingVertical: 16,
-    paddingHorizontal: 40,
+    borderRadius: 20,
+    paddingVertical: 18,
+    paddingHorizontal: 48,
     alignItems: "center",
     shadowColor: "#6366f1",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 8,
   },
-  backButtonText: {
-    color: "#fff",
+  buttonText: {
+    color: "#ffffff",
     fontSize: 18,
     fontWeight: "700",
+    letterSpacing: -0.2,
   },
 });
