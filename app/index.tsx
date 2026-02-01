@@ -1,7 +1,6 @@
-// screens/WelcomeScreen.tsx
-
-import { useNavigation } from "@react-navigation/native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
+import { useRouter } from "expo-router";
 import React, { useEffect, useRef } from "react";
 import {
   Animated,
@@ -20,7 +19,7 @@ const { width, height } = Dimensions.get("window");
 const GO_BUTTON_SIZE = Math.min(width * 0.32, 140);
 
 export default function WelcomeScreen() {
-  const navigation = useNavigation<any>();
+  const router = useRouter();
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.85)).current;
@@ -28,8 +27,30 @@ export default function WelcomeScreen() {
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    // Optional: later check if user is logged in → navigation.replace("dashboard")
+    // Check if already logged in
+    const checkAuth = async () => {
+      try {
+        const userJson = await AsyncStorage.getItem("user");
+        if (userJson) {
+          const user = JSON.parse(userJson);
+          if (user?.email) {
+            // Already authenticated → skip to dashboard
+            router.replace("/dashboard");
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn("Welcome auth check failed", err);
+      }
 
+      // Not logged in → start animations
+      startAnimations();
+    };
+
+    checkAuth();
+  }, [router]);
+
+  const startAnimations = () => {
     const pulse = Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, {
@@ -70,11 +91,10 @@ export default function WelcomeScreen() {
     pulse.start();
 
     return () => pulse.stop();
-  }, []);
+  };
 
   const handleGoPress = () => {
-    navigation.navigate("log"); // ← Changed to go to login/signup first
-    // Or "dashboard" if you implement auth check above
+    router.push("/log");
   };
 
   const flags = [
@@ -96,7 +116,6 @@ export default function WelcomeScreen() {
         style={StyleSheet.absoluteFill}
       />
 
-      {/* Updated background: subtle dark world map */}
       <Image
         source={{
           uri: "https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&q=80&w=2000",
@@ -106,7 +125,6 @@ export default function WelcomeScreen() {
       />
 
       <View style={styles.content}>
-        {/* Animated flags cluster */}
         <Animated.View
           style={[
             styles.flagsContainer,
@@ -146,7 +164,6 @@ export default function WelcomeScreen() {
           ))}
         </Animated.View>
 
-        {/* Hero text */}
         <Animated.View
           style={[
             styles.textContainer,
@@ -156,7 +173,7 @@ export default function WelcomeScreen() {
             },
           ]}
         >
-          <Text style={styles.title}>Marghivasal</Text>
+          <Text style={styles.title}>Margivasal</Text>
           <View style={styles.titleUnderline} />
           <Text style={styles.tagline}>Translate Everything</Text>
 
@@ -165,7 +182,6 @@ export default function WelcomeScreen() {
           </Text>
         </Animated.View>
 
-        {/* GO button with pulse */}
         <Animated.View
           style={{
             marginTop: "auto",
@@ -211,9 +227,7 @@ export default function WelcomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
+  container: { flex: 1 },
   backgroundMap: {
     ...StyleSheet.absoluteFillObject,
     opacity: 0.07,
@@ -244,7 +258,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#4CAF50",
     opacity: 0.18,
   },
-  // Flag positions – slightly adjusted for better balance
   flag1: { position: "absolute", top: "8%", left: "12%" },
   flag2: { position: "absolute", top: "15%", right: "10%" },
   flag3: { position: "absolute", top: "38%", right: "5%" },

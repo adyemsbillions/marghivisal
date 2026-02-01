@@ -170,7 +170,7 @@ export default function Dashboard() {
             contentContainerStyle={styles.languageScroll}
           >
             {[
-              { flag: "🇳🇬", name: "Marghi", code: "mrt" },
+              { flag: "🇳🇬", name: "Margi", code: "mrt" },
               { flag: "🇳🇬", name: "Hona", code: "hwo" },
               { flag: "🇳🇬", name: "Glavda", code: "glw" },
               { flag: "🇳🇬", name: "Hausa", code: "ha" },

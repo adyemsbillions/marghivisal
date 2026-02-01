@@ -1,29 +1,29 @@
-// app/profile.tsx
 "use client";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-// Small list of languages (consistent with your dashboard)
+const API_USER = "https://margivial.cravii.ng/api/user.php";
+
 const languages = [
   { code: "en", name: "English" },
   { code: "ha", name: "Hausa" },
   { code: "yo", name: "Yoruba" },
   { code: "ig", name: "Igbo" },
   { code: "pcm", name: "Nigerian Pidgin" },
-  { code: "mrt", name: "Marghi" },
+  { code: "mrt", name: "Margi" },
   { code: "hwo", name: "Hona" },
   { code: "glw", name: "Glavda" },
   { code: "tiv", name: "Tiv" },
@@ -35,10 +35,12 @@ export default function Profile() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  const [name, setName] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [country, setCountry] = useState("");
+  const [joinedDate, setJoinedDate] = useState("");
   const [favoriteLang, setFavoriteLang] = useState("");
   const [totalTranslations, setTotalTranslations] = useState(0);
-  const [joinedDate, setJoinedDate] = useState("");
   const [loading, setLoading] = useState(true);
   const [editingName, setEditingName] = useState(false);
 
@@ -47,53 +49,108 @@ export default function Profile() {
   }, []);
 
   const loadProfileData = async () => {
+    setLoading(true);
+
     try {
-      setLoading(true);
+      const storedUser = await AsyncStorage.getItem("user");
+      let emailToSend = "";
 
-      // Name
-      const savedName = await AsyncStorage.getItem("userName");
-      if (savedName) setName(savedName);
+      if (storedUser) {
+        const parsed = JSON.parse(storedUser);
+        emailToSend = parsed?.email?.trim()?.toLowerCase() || "";
 
-      // Favorite language
-      const savedLang = await AsyncStorage.getItem("favoriteLanguage");
-      if (savedLang) setFavoriteLang(savedLang);
+        setFullName(parsed.full_name || "Guest");
+        setEmail(parsed.email || "");
+        setCountry(parsed.country || "");
+      }
 
-      // Translation count from history
+      if (emailToSend) {
+        const response = await fetch(API_USER, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "get_profile",
+            email: emailToSend,
+          }),
+        });
+
+        const data = await response.json();
+
+        if (data.status === "success" && data.user) {
+          const u = data.user;
+          setFullName(u.full_name || "Guest");
+          setEmail(u.email || "");
+          setCountry(u.country || "");
+
+          if (u.created_at) {
+            try {
+              const date = new Date(u.created_at);
+              if (!isNaN(date.getTime())) {
+                setJoinedDate(
+                  date.toLocaleDateString("en-GB", {
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                  }),
+                );
+              }
+            } catch {}
+          }
+
+          await AsyncStorage.setItem("user", JSON.stringify(u));
+        }
+      }
+
+      const favLang = await AsyncStorage.getItem("favoriteLanguage");
+      if (favLang) setFavoriteLang(favLang);
+
       const history = await AsyncStorage.getItem("translationHistory");
       if (history) {
-        const parsed = JSON.parse(history);
-        setTotalTranslations(parsed.length);
+        setTotalTranslations(JSON.parse(history).length);
       }
 
-      // Joined date
-      let joinDate = await AsyncStorage.getItem("joinedDate");
-      if (!joinDate) {
-        joinDate = new Date().toISOString();
-        await AsyncStorage.setItem("joinedDate", joinDate);
+      if (!joinedDate) {
+        let storedJoinDate = await AsyncStorage.getItem("joinedDate");
+        if (!storedJoinDate) {
+          storedJoinDate = new Date().toISOString();
+          await AsyncStorage.setItem("joinedDate", storedJoinDate);
+        }
+        setJoinedDate(
+          new Date(storedJoinDate).toLocaleDateString("en-GB", {
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+          }),
+        );
       }
-      setJoinedDate(
-        new Date(joinDate).toLocaleDateString("en-GB", {
-          year: "numeric",
-          month: "long",
-          day: "numeric",
-        }),
-      );
-    } catch (e) {
-      console.warn("Profile load error:", e);
+    } catch (error) {
+      console.error("Profile load error:", error);
+      const fallback = await AsyncStorage.getItem("user");
+      if (fallback) {
+        const parsed = JSON.parse(fallback);
+        setFullName(parsed.full_name || "Guest");
+        setEmail(parsed.email || "");
+        setCountry(parsed.country || "");
+      }
     } finally {
       setLoading(false);
     }
   };
 
   const saveName = async () => {
-    if (!name.trim()) {
-      Alert.alert("Error", "Name cannot be empty");
-      return;
+    if (!fullName.trim()) {
+      return Alert.alert("Error", "Name cannot be empty");
     }
+
     try {
-      await AsyncStorage.setItem("userName", name.trim());
+      const currentUser = JSON.parse(
+        (await AsyncStorage.getItem("user")) || "{}",
+      );
+      const updatedUser = { ...currentUser, full_name: fullName.trim() };
+      await AsyncStorage.setItem("user", JSON.stringify(updatedUser));
+
       setEditingName(false);
-      Alert.alert("Success", "Name saved!");
+      Alert.alert("Success", "Name updated");
     } catch (e) {
       Alert.alert("Error", "Could not save name");
     }
@@ -109,42 +166,53 @@ export default function Profile() {
     }
   };
 
-  const clearHistory = () => {
-    Alert.alert(
-      "Clear History",
-      "This will delete all your translation history. Continue?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await AsyncStorage.removeItem("translationHistory");
-              setTotalTranslations(0);
-              Alert.alert("Done", "History cleared");
-            } catch (e) {
-              Alert.alert("Error", "Could not clear history");
-            }
-          },
+  const handleLogout = () => {
+    Alert.alert("Log Out", "Are you sure?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Log Out",
+        style: "destructive",
+        onPress: async () => {
+          await AsyncStorage.multiRemove([
+            "user",
+            "favoriteLanguage",
+            "joinedDate",
+          ]);
+          router.replace("/log");
         },
-      ],
-    );
+      },
+    ]);
+  };
+
+  const clearHistory = () => {
+    Alert.alert("Clear History", "Delete all translation history?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          await AsyncStorage.removeItem("translationHistory");
+          setTotalTranslations(0);
+          Alert.alert("Done", "History cleared");
+        },
+      },
+    ]);
+  };
+
+  const goToDonate = () => {
+    router.push("/donate");
   };
 
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color="#6366f1" />
-        </View>
+        <ActivityIndicator size="large" color="#6366f1" style={{ flex: 1 }} />
       </SafeAreaView>
     );
   }
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
           <Text style={styles.backIcon}>←</Text>
@@ -164,9 +232,9 @@ export default function Profile() {
             <View style={styles.nameEditRow}>
               <TextInput
                 style={styles.nameInput}
-                value={name}
-                onChangeText={setName}
-                placeholder="Enter your name"
+                value={fullName}
+                onChangeText={setFullName}
+                placeholder="Your name"
                 placeholderTextColor="#666"
                 autoFocus
               />
@@ -176,13 +244,15 @@ export default function Profile() {
             </View>
           ) : (
             <View style={styles.nameRow}>
-              <Text style={styles.profileName}>{name || "Guest"}</Text>
+              <Text style={styles.profileName}>{fullName || "Guest"}</Text>
               <TouchableOpacity onPress={() => setEditingName(true)}>
                 <Text style={styles.editIcon}>✏️</Text>
               </TouchableOpacity>
             </View>
           )}
 
+          <Text style={styles.emailText}>{email || "—"}</Text>
+          <Text style={styles.countryText}>📍 {country || "—"}</Text>
           <Text style={styles.joinedDate}>Joined {joinedDate || "—"}</Text>
         </View>
 
@@ -199,7 +269,7 @@ export default function Profile() {
           </View>
         </View>
 
-        {/* Favorite Language */}
+        {/* Favorite Language Selector */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Favorite Language</Text>
           <View style={styles.langGrid}>
@@ -233,13 +303,17 @@ export default function Profile() {
             </Text>
           </TouchableOpacity>
 
+          <TouchableOpacity style={styles.actionButton} onPress={goToDonate}>
+            <Text style={[styles.actionButtonText, { color: "#FFD700" }]}>
+              Donate to Support the Project
+            </Text>
+          </TouchableOpacity>
+
           <TouchableOpacity
             style={[styles.actionButton, styles.dangerButton]}
-            onPress={() =>
-              Alert.alert("Coming Soon", "Full data reset & more features")
-            }
+            onPress={handleLogout}
           >
-            <Text style={styles.actionButtonText}>Reset All Data</Text>
+            <Text style={styles.actionButtonText}>Log Out</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -270,12 +344,6 @@ const styles = StyleSheet.create({
     paddingBottom: 140,
   },
 
-  center: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-
   profileCard: {
     backgroundColor: "#1A1A1A",
     borderRadius: 24,
@@ -297,6 +365,7 @@ const styles = StyleSheet.create({
     borderColor: "#6366F1",
   },
   avatarEmoji: { fontSize: 60 },
+
   nameRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -329,10 +398,21 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   editIcon: { fontSize: 22, color: "#A5B4FC" },
+
+  emailText: {
+    fontSize: 15,
+    color: "#bbb",
+    marginTop: 8,
+  },
+  countryText: {
+    fontSize: 15,
+    color: "#bbb",
+    marginTop: 4,
+  },
   joinedDate: {
     fontSize: 14,
     color: "#888",
-    marginTop: 12,
+    marginTop: 8,
   },
 
   statsContainer: {

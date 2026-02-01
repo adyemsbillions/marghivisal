@@ -4,14 +4,14 @@ import { useRouter } from "expo-router";
 import * as Speech from "expo-speech";
 import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 // API to fetch approved suggestions
@@ -19,7 +19,7 @@ const API_GET_APPROVED =
   "https://margivial.cravii.ng/api/get-approved-suggestions.php";
 
 const languageOptions = [
-  { key: "marghi", name: "Marghi", flag: "https://flagcdn.com/w320/ng.png" },
+  { key: "margi", name: "Margi", flag: "https://flagcdn.com/w320/ng.png" },
   { key: "hona", name: "Hona", flag: "https://flagcdn.com/w320/ng.png" },
   { key: "glavda", name: "Glavda", flag: "https://flagcdn.com/w320/ng.png" },
   { key: "ha", name: "Hausa", flag: "https://flagcdn.com/w320/ng.png" },

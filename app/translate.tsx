@@ -46,7 +46,7 @@ const languages = [
   },
   {
     code: "mrt",
-    name: "Marghi",
+    name: "Margi",
     flag: "https://flagcdn.com/w320/ng.png",
     special: true,
   },

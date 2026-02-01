@@ -3,19 +3,18 @@ import { useRouter } from "expo-router";
 import * as Speech from "expo-speech";
 import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Image,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Image,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
-const API_SUBMIT = "https://margivial.cravii.ng/api/submit-suggestion.php";
 const API_GET_APPROVED =
   "https://margivial.cravii.ng/api/get-approved-suggestions.php";
 
@@ -36,31 +35,31 @@ const staticDictionary: Record<
   },
 };
 
-// Use exact language_key values from your database
+// Updated language list with all requested languages
 const languages = [
-  { key: "marghi", name: "Marghi", flag: "https://flagcdn.com/w320/ng.png" },
+  { key: "en", name: "English", flag: "https://flagcdn.com/w320/us.png" },
+  { key: "he", name: "Hebrew", flag: "https://flagcdn.com/w320/il.png" },
+  { key: "marghi", name: "Margi", flag: "https://flagcdn.com/w320/ng.png" },
   { key: "hona", name: "Hona", flag: "https://flagcdn.com/w320/ng.png" },
   { key: "glavda", name: "Glavda", flag: "https://flagcdn.com/w320/ng.png" },
+  { key: "bwr", name: "Bura", flag: "https://flagcdn.com/w320/ng.png" },
+  { key: "fli", name: "Fali", flag: "https://flagcdn.com/w320/ng.png" },
+  { key: "hig", name: "Kamwe", flag: "https://flagcdn.com/w320/ng.png" },
+  { key: "ckl", name: "Kibaku", flag: "https://flagcdn.com/w320/ng.png" },
+  { key: "gnb", name: "Gavva", flag: "https://flagcdn.com/w320/ng.png" },
+  { key: "rw", name: "Kinyarwanda", flag: "https://flagcdn.com/w320/rw.png" },
 ];
 
 export default function MinorityTranslate() {
   const router = useRouter();
+
   const [sourceText, setSourceText] = useState("");
   const [translatedText, setTranslatedText] = useState("");
   const [sourceIsEnglish, setSourceIsEnglish] = useState(true);
   const [selectedLang, setSelectedLang] = useState(languages[0]);
   const [loading, setLoading] = useState(false);
-
-  // Approved suggestions from your server
   const [approvedSuggestions, setApprovedSuggestions] = useState<any[]>([]);
 
-  // Suggestion form states
-  const [suggestLocal, setSuggestLocal] = useState("");
-  const [suggestEnglish, setSuggestEnglish] = useState("");
-  const [suggestContext, setSuggestContext] = useState("");
-  const [suggestSubmitting, setSuggestSubmitting] = useState(false);
-
-  // Fetch approved suggestions when language changes or component mounts
   useEffect(() => {
     fetchApprovedSuggestions();
   }, [selectedLang.key]);
@@ -72,12 +71,9 @@ export default function MinorityTranslate() {
       );
       const data = await res.json();
 
-      console.log("Fetched suggestions for", selectedLang.key, ":", data); // ← Debug
-
       if (data.success) {
         setApprovedSuggestions(data.suggestions || []);
       } else {
-        console.warn("API returned error:", data.error);
         setApprovedSuggestions([]);
       }
     } catch (err) {
@@ -100,10 +96,11 @@ export default function MinorityTranslate() {
     setLoading(true);
     setTranslatedText("");
 
+    // Artificial delay to simulate lookup
     setTimeout(() => {
       let result = "";
 
-      // 1. Try approved suggestions first (community priority)
+      // 1. Try approved suggestions first
       const approvedMatch = approvedSuggestions.find((s) => {
         const en = (s.english_meaning || "").toLowerCase();
         const local = (s.local_phrase || "").toLowerCase();
@@ -129,11 +126,11 @@ export default function MinorityTranslate() {
               : e.local.toLowerCase().includes(query)),
         );
 
-        if (staticMatch) {
-          result = sourceIsEnglish ? staticMatch.local : staticMatch.en;
-        } else {
-          result = "No translation found — please suggest it below!";
-        }
+        result = staticMatch
+          ? sourceIsEnglish
+            ? staticMatch.local
+            : staticMatch.en
+          : "No translation found — please suggest it!";
       }
 
       setTranslatedText(result);
@@ -144,40 +141,6 @@ export default function MinorityTranslate() {
   const speak = (text: string) => {
     if (!text) return;
     Speech.speak(text, { language: "en" });
-  };
-
-  const handleSuggest = async () => {
-    if (!suggestLocal.trim() || !suggestEnglish.trim()) {
-      return Alert.alert("Missing info", "Please fill both fields.");
-    }
-
-    setSuggestSubmitting(true);
-
-    try {
-      const res = await fetch(API_SUBMIT, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          language_key: selectedLang.key,
-          local_phrase: suggestLocal.trim(),
-          english_meaning: suggestEnglish.trim(),
-          context: suggestContext.trim() || null,
-        }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) throw new Error(data.error || "Failed to submit");
-
-      Alert.alert("Success!", data.message || "Suggestion sent — thank you!");
-      setSuggestLocal("");
-      setSuggestEnglish("");
-      setSuggestContext("");
-    } catch (err: any) {
-      Alert.alert("Error", err.message || "Could not send suggestion.");
-    } finally {
-      setSuggestSubmitting(false);
-    }
   };
 
   return (
@@ -191,7 +154,39 @@ export default function MinorityTranslate() {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Direction selector */}
+        {/* Language selector */}
+        <View style={styles.langSwitcher}>
+          <Text style={styles.langSwitcherTitle}>Translate to/from:</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <View style={styles.langChips}>
+              {languages.map((lang) => (
+                <TouchableOpacity
+                  key={lang.key}
+                  style={[
+                    styles.langChip,
+                    selectedLang.key === lang.key && styles.langChipSelected,
+                  ]}
+                  onPress={() => {
+                    setSelectedLang(lang);
+                    setTranslatedText(""); // clear previous translation
+                  }}
+                >
+                  <Image source={{ uri: lang.flag }} style={styles.langFlag} />
+                  <Text
+                    style={[
+                      styles.langChipText,
+                      selectedLang.key === lang.key && { color: "#fff" },
+                    ]}
+                  >
+                    {lang.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
+        </View>
+
+        {/* Source & Target language boxes + swap */}
         <View style={styles.selectorContainer}>
           <View style={styles.langBox}>
             <Image
@@ -226,19 +221,7 @@ export default function MinorityTranslate() {
           </View>
         </View>
 
-        {/* Cycle language */}
-        <TouchableOpacity
-          style={styles.cycleButton}
-          onPress={() => {
-            const idx = languages.findIndex((l) => l.key === selectedLang.key);
-            setSelectedLang(languages[(idx + 1) % languages.length]);
-            setTranslatedText("");
-          }}
-        >
-          <Text style={styles.cycleText}>Change: {selectedLang.name}</Text>
-        </TouchableOpacity>
-
-        {/* Input card */}
+        {/* Input area */}
         <View style={styles.inputCard}>
           <Text style={styles.cardLabel}>
             {sourceIsEnglish ? "English" : selectedLang.name}
@@ -247,22 +230,24 @@ export default function MinorityTranslate() {
             style={styles.input}
             placeholder={
               sourceIsEnglish
-                ? "Type English..."
+                ? "Type English text..."
                 : `Type in ${selectedLang.name}...`
             }
             multiline
             value={sourceText}
             onChangeText={setSourceText}
           />
-          <TouchableOpacity
-            onPress={() => speak(sourceText)}
-            style={styles.speakBtn}
-          >
-            <Text>🔊 Speak</Text>
-          </TouchableOpacity>
+          {sourceText.length > 0 && (
+            <TouchableOpacity
+              onPress={() => speak(sourceText)}
+              style={styles.speakBtn}
+            >
+              <Text>🔊 Speak</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
-        {/* Output card */}
+        {/* Output area */}
         <View style={styles.outputCard}>
           <Text style={styles.cardLabel}>
             {sourceIsEnglish ? selectedLang.name : "English"}
@@ -270,7 +255,9 @@ export default function MinorityTranslate() {
           {loading ? (
             <ActivityIndicator size="large" color="#6366f1" />
           ) : (
-            <Text style={styles.outputText}>{translatedText || "—"}</Text>
+            <Text style={styles.outputText}>
+              {translatedText || "— Translation appears here —"}
+            </Text>
           )}
           {translatedText && !translatedText.includes("No") && (
             <TouchableOpacity
@@ -282,49 +269,32 @@ export default function MinorityTranslate() {
           )}
         </View>
 
-        {/* Lookup button */}
+        {/* Action buttons */}
         <TouchableOpacity style={styles.actionBtn} onPress={handleLookup}>
           <Text style={styles.actionText}>Lookup</Text>
         </TouchableOpacity>
 
-        {/* Suggestion form */}
-        <View style={styles.suggestBox}>
-          <Text style={styles.suggestTitle}>Suggest New Phrase</Text>
-
-          <TextInput
-            style={styles.suggestInput}
-            placeholder={`${selectedLang.name} phrase`}
-            value={suggestLocal}
-            onChangeText={setSuggestLocal}
-            editable={!suggestSubmitting}
-          />
-
-          <TextInput
-            style={styles.suggestInput}
-            placeholder="English meaning"
-            value={suggestEnglish}
-            onChangeText={setSuggestEnglish}
-            editable={!suggestSubmitting}
-          />
-
-          <TouchableOpacity
-            style={[styles.suggestBtn, suggestSubmitting && { opacity: 0.6 }]}
-            onPress={handleSuggest}
-            disabled={suggestSubmitting}
-          >
-            {suggestSubmitting ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.suggestBtnText}>Send Suggestion</Text>
-            )}
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          style={styles.suggestNavBtn}
+          onPress={() =>
+            router.push({
+              pathname: "/suggest",
+              params: {
+                langKey: selectedLang.key,
+                langName: selectedLang.name,
+              },
+            })
+          }
+        >
+          <Text style={styles.suggestNavText}>
+            Suggest new {selectedLang.name} phrase →
+          </Text>
+        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-// Styles (unchanged)
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f8f9fa" },
   header: {
@@ -339,7 +309,47 @@ const styles = StyleSheet.create({
   backIcon: { fontSize: 32, color: "#333" },
   headerTitle: { fontSize: 20, fontWeight: "bold" },
 
-  scrollContent: { padding: 16 },
+  scrollContent: { padding: 16, paddingBottom: 40 },
+
+  // ── Language switcher ──
+  langSwitcher: {
+    marginBottom: 16,
+  },
+  langSwitcherTitle: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#555",
+    marginBottom: 8,
+  },
+  langChips: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  langChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    backgroundColor: "#e0e0e0",
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#ccc",
+  },
+  langChipSelected: {
+    backgroundColor: "#10b981",
+    borderColor: "#10b981",
+  },
+  langFlag: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    marginRight: 8,
+  },
+  langChipText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#333",
+  },
 
   selectorContainer: {
     flexDirection: "row",
@@ -347,7 +357,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     borderRadius: 16,
     padding: 12,
-    marginBottom: 12,
+    marginBottom: 16,
     shadowColor: "#000",
     shadowOpacity: 0.1,
     shadowRadius: 6,
@@ -368,18 +378,11 @@ const styles = StyleSheet.create({
   },
   swapIcon: { fontSize: 32, color: "#fff" },
 
-  cycleButton: {
-    alignSelf: "center",
-    padding: 8,
-    marginBottom: 16,
-  },
-  cycleText: { color: "#6366f1", fontWeight: "600" },
-
   inputCard: {
     backgroundColor: "#fff",
     borderRadius: 16,
     padding: 16,
-    marginBottom: 12,
+    marginBottom: 16,
     shadowColor: "#000",
     shadowOpacity: 0.08,
     shadowRadius: 6,
@@ -389,7 +392,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#f0f4ff",
     borderRadius: 16,
     padding: 16,
-    marginBottom: 12,
+    marginBottom: 16,
   },
   cardLabel: {
     fontSize: 14,
@@ -406,33 +409,21 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     paddingVertical: 16,
     alignItems: "center",
-    marginBottom: 24,
+    marginBottom: 16,
   },
   actionText: { color: "#fff", fontSize: 18, fontWeight: "bold" },
 
-  suggestBox: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 16,
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  suggestTitle: { fontSize: 18, fontWeight: "bold", marginBottom: 12 },
-  suggestInput: {
+  suggestNavBtn: {
+    backgroundColor: "#10b98122",
     borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 12,
-    fontSize: 16,
-  },
-  suggestBtn: {
-    backgroundColor: "#10b981",
-    borderRadius: 12,
-    paddingVertical: 14,
+    borderColor: "#10b981",
+    borderRadius: 16,
+    paddingVertical: 16,
     alignItems: "center",
   },
-  suggestBtnText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
+  suggestNavText: {
+    color: "#10b981",
+    fontSize: 16,
+    fontWeight: "600",
+  },
 });
