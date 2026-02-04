@@ -44,6 +44,8 @@ const languages = [
     name: "Nigerian Pidgin",
     flag: "https://flagcdn.com/w320/ng.png",
   },
+
+  // Minority / Special languages
   {
     code: "mrt",
     name: "Margi",
@@ -62,6 +64,13 @@ const languages = [
     flag: "https://flagcdn.com/w320/ng.png",
     special: true,
   },
+  {
+    code: "gav",
+    name: "Gavva",
+    flag: "https://flagcdn.com/w320/ng.png",
+    special: true,
+  },
+
   { code: "tiv", name: "Tiv", flag: "https://flagcdn.com/w320/ng.png" },
   { code: "kr", name: "Kanuri", flag: "https://flagcdn.com/w320/ng.png" },
   {
@@ -259,7 +268,8 @@ export default function TranslateScreen() {
     setTranslatedText("");
     setErrorMessage(null);
 
-    const specialCodes = ["mrt", "hwo", "glw"];
+    // Updated to include "gav"
+    const specialCodes = ["mrt", "hwo", "glw", "gav"];
     const isSpecial =
       specialCodes.includes(sourceLang.code) ||
       specialCodes.includes(targetLang.code);

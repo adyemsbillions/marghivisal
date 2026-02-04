@@ -6,10 +6,14 @@ import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  FlatList,
+  Image,
+  Modal,
   SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -18,28 +22,50 @@ import {
 const API_GET_APPROVED =
   "https://margivial.cravii.ng/api/get-approved-suggestions.php";
 
+// Full language list (you can move this to a shared file later)
 const languageOptions = [
-  { key: "margi", name: "Margi", flag: "https://flagcdn.com/w320/ng.png" },
+  { key: "marghi", name: "Margi", flag: "https://flagcdn.com/w320/ng.png" },
   { key: "hona", name: "Hona", flag: "https://flagcdn.com/w320/ng.png" },
   { key: "glavda", name: "Glavda", flag: "https://flagcdn.com/w320/ng.png" },
+  { key: "mrt", name: "Margi (alt)", flag: "https://flagcdn.com/w320/ng.png" },
+  { key: "hwo", name: "Hona (alt)", flag: "https://flagcdn.com/w320/ng.png" },
+  { key: "glw", name: "Glavda (alt)", flag: "https://flagcdn.com/w320/ng.png" },
+  { key: "gav", name: "Gavva", flag: "https://flagcdn.com/w320/ng.png" },
   { key: "ha", name: "Hausa", flag: "https://flagcdn.com/w320/ng.png" },
+  { key: "yo", name: "Yoruba", flag: "https://flagcdn.com/w320/ng.png" },
+  { key: "ig", name: "Igbo", flag: "https://flagcdn.com/w320/ng.png" },
+  {
+    key: "pcm",
+    name: "Nigerian Pidgin",
+    flag: "https://flagcdn.com/w320/ng.png",
+  },
+  { key: "tiv", name: "Tiv", flag: "https://flagcdn.com/w320/ng.png" },
+  { key: "kr", name: "Kanuri", flag: "https://flagcdn.com/w320/ng.png" },
+  {
+    key: "ff",
+    name: "Fulfulde (Fula)",
+    flag: "https://flagcdn.com/w320/ng.png",
+  },
+  // Add more languages here as needed
 ];
 
 export default function Learn() {
   const router = useRouter();
 
   const [selectedLang, setSelectedLang] = useState(languageOptions[0]);
-  const [lessons, setLessons] = useState([]); // fetched approved suggestions
+  const [lessons, setLessons] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [progress, setProgress] = useState({}); // { marghi: 3, hona: 0, ... }
+  const [progress, setProgress] = useState({}); // { margi: 5, ha: 12, ... }
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(null);
+  const [showLanguagePicker, setShowLanguagePicker] = useState(false);
 
-  // Load saved progress + fetch lessons when language changes
+  // Load saved progress once
   useEffect(() => {
     loadProgress();
   }, []);
 
+  // Fetch lessons when selected language changes
   useEffect(() => {
     fetchLessons();
   }, [selectedLang.key]);
@@ -50,21 +76,19 @@ export default function Learn() {
     setLessons([]);
 
     try {
-      const res = await fetch(
-        `${API_GET_APPROVED}?language_key=${selectedLang.key}`,
-      );
+      const url = `${API_GET_APPROVED}?language_key=${encodeURIComponent(selectedLang.key)}`;
+      const res = await fetch(url);
       const data = await res.json();
 
       if (!data.success) {
         throw new Error(data.error || "Failed to load lessons");
       }
 
-      // Map API response to lesson format
       const formatted = (data.suggestions || []).map((item, idx) => ({
         id: idx + 1,
         english: item.english_meaning,
         local: item.local_phrase,
-        audioLang: selectedLang.key === "ha" ? "ha" : "en", // Hausa has better TTS support
+        audioLang: selectedLang.key === "ha" ? "ha" : "en", // better Hausa TTS
         explanation: item.context || "Community-contributed phrase",
         category: "Community Lesson",
       }));
@@ -72,11 +96,11 @@ export default function Learn() {
       setLessons(formatted);
 
       if (formatted.length === 0) {
-        setFetchError("No approved lessons available for this language yet.");
+        setFetchError(`No approved lessons yet for ${selectedLang.name}.`);
       }
     } catch (err) {
-      console.error("Fetch lessons error:", err);
-      setFetchError("Could not load lessons. Check internet or try again.");
+      console.error("Fetch error:", err);
+      setFetchError("Could not load lessons. Please check your connection.");
     } finally {
       setLoading(false);
     }
@@ -116,10 +140,10 @@ export default function Learn() {
       setCurrentIndex(currentIndex + 1);
     } else {
       Alert.alert(
-        "Well done!",
-        `You've reviewed all available ${selectedLang.name} lessons!`,
+        "Great job!",
+        `You've completed all available ${selectedLang.name} lessons!`,
       );
-      setCurrentIndex(0); // restart from beginning
+      setCurrentIndex(0);
     }
   };
 
@@ -132,20 +156,64 @@ export default function Learn() {
     });
   };
 
-  const cycleLanguage = () => {
-    const idx = languageOptions.findIndex((l) => l.key === selectedLang.key);
-    const next = languageOptions[(idx + 1) % languageOptions.length];
-    setSelectedLang(next);
-    setCurrentIndex(0);
-  };
+  const LanguagePicker = () => {
+    const [search, setSearch] = useState("");
 
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <ActivityIndicator size="large" color="#6366f1" style={{ flex: 1 }} />
-      </SafeAreaView>
+    const filtered = languageOptions.filter((l) =>
+      l.name.toLowerCase().includes(search.toLowerCase()),
     );
-  }
+
+    return (
+      <Modal
+        visible={showLanguagePicker}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowLanguagePicker(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Choose Language</Text>
+
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search language..."
+              value={search}
+              onChangeText={setSearch}
+            />
+
+            <FlatList
+              data={filtered}
+              keyExtractor={(item) => item.key}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[
+                    styles.langItem,
+                    item.key === selectedLang.key && styles.langItemSelected,
+                  ]}
+                  onPress={() => {
+                    setSelectedLang(item);
+                    setCurrentIndex(0);
+                    setShowLanguagePicker(false);
+                    setSearch("");
+                  }}
+                >
+                  <Image source={{ uri: item.flag }} style={styles.langFlag} />
+                  <Text style={styles.langName}>{item.name}</Text>
+                </TouchableOpacity>
+              )}
+            />
+
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => setShowLanguagePicker(false)}
+            >
+              <Text style={styles.closeText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -154,8 +222,8 @@ export default function Learn() {
           <Text style={styles.backIcon}>←</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Learn {selectedLang.name}</Text>
-        <TouchableOpacity onPress={cycleLanguage}>
-          <Text style={styles.switchLang}>Switch</Text>
+        <TouchableOpacity onPress={() => setShowLanguagePicker(true)}>
+          <Text style={styles.switchLang}>Change</Text>
         </TouchableOpacity>
       </View>
 
@@ -180,7 +248,13 @@ export default function Learn() {
         </View>
 
         {/* Lesson content */}
-        {fetchError ? (
+        {loading ? (
+          <ActivityIndicator
+            size="large"
+            color="#10b981"
+            style={{ marginVertical: 60 }}
+          />
+        ) : fetchError ? (
           <Text style={styles.errorText}>{fetchError}</Text>
         ) : currentLesson ? (
           <View style={styles.lessonCard}>
@@ -213,14 +287,14 @@ export default function Learn() {
           </View>
         ) : (
           <Text style={styles.noLessons}>
-            No approved lessons yet for {selectedLang.name}. Help by suggesting
-            some phrases!
+            No approved lessons yet for {selectedLang.name}.{"\n"}Help grow the
+            collection by suggesting phrases!
           </Text>
         )}
 
         {/* Stats */}
         <View style={styles.statsBox}>
-          <Text style={styles.statsTitle}>Your Learning Progress</Text>
+          <Text style={styles.statsTitle}>Your Progress</Text>
           {languageOptions.map((lang) => (
             <Text key={lang.key} style={styles.statItem}>
               {lang.name}: {progress[lang.key] || 0} lessons completed
@@ -231,13 +305,13 @@ export default function Learn() {
         {/* CTA */}
         <TouchableOpacity
           style={styles.ctaButton}
-          onPress={() => router.push("/minority-translate")}
+          onPress={() => router.push("/suggest")}
         >
-          <Text style={styles.ctaText}>
-            Suggest new phrases to add lessons →
-          </Text>
+          <Text style={styles.ctaText}>Suggest new phrases →</Text>
         </TouchableOpacity>
       </ScrollView>
+
+      <LanguagePicker />
     </SafeAreaView>
   );
 }
@@ -360,4 +434,65 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   ctaText: { color: "#fff", fontSize: 16, fontWeight: "700" },
+
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalContent: {
+    width: "90%",
+    maxHeight: "80%",
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 20,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    marginBottom: 16,
+    textAlign: "center",
+  },
+  searchInput: {
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+    fontSize: 16,
+  },
+  langItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: "#eee",
+  },
+  langItemSelected: {
+    backgroundColor: "#e6f0ff",
+  },
+  langFlag: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    marginRight: 16,
+  },
+  langName: {
+    fontSize: 17,
+    color: "#222",
+  },
+  closeButton: {
+    marginTop: 20,
+    paddingVertical: 14,
+    backgroundColor: "#6366f1",
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  closeText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+  },
 });
