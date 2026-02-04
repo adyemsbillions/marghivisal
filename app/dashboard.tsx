@@ -9,6 +9,7 @@ import {
   Animated,
   Dimensions,
   Image,
+  Modal,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -33,6 +34,14 @@ type User = {
   country: string;
 };
 
+type Notification = {
+  id: number;
+  message: string;
+};
+
+const API_NOTIFICATION =
+  "https://margivial.cravii.ng/api/send_notification.php";
+
 export default function Dashboard() {
   const router = useRouter();
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -42,6 +51,8 @@ export default function Dashboard() {
   >([]);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [notification, setNotification] = useState<Notification | null>(null);
 
   useEffect(() => {
     Animated.timing(fadeAnim, {
@@ -73,6 +84,51 @@ export default function Dashboard() {
 
     loadData();
   }, []);
+
+  useEffect(() => {
+    if (user) {
+      fetchNotifications();
+    }
+  }, [user]);
+
+  const fetchNotifications = async () => {
+    if (!user?.email) return;
+
+    try {
+      const response = await fetch(API_NOTIFICATION, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "get",
+          email: user.email.trim().toLowerCase(),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.notifications && data.notifications.length > 0) {
+        setNotification(data.notifications[0]); // Show the latest unread
+        setIsModalVisible(true);
+      }
+    } catch (error) {
+      console.error("Failed to fetch notifications:", error);
+    }
+  };
+
+  const markAsRead = async (id: number) => {
+    try {
+      await fetch(API_NOTIFICATION, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "mark_read",
+          id,
+        }),
+      });
+    } catch (error) {
+      console.error("Failed to mark as read:", error);
+    }
+  };
 
   const handleLogout = async () => {
     Alert.alert("Log Out", "Are you sure you want to log out?", [
@@ -144,7 +200,7 @@ export default function Dashboard() {
         >
           <Image
             source={{
-              uri: "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=800&q=80",
+              uri: "https://play-lh.googleusercontent.com/V9w1SL-Msdryg-ppDyJ19l4nxCrisJkKJ1uTder7napALSwpTtdLMcVd3axW9E5W2ww",
             }}
             style={styles.mainCardBg}
           />
@@ -284,6 +340,40 @@ export default function Dashboard() {
           <Text style={styles.navLabel}>Profile</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Notification Popup Modal */}
+      <Modal
+        visible={isModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setIsModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <Animated.View
+            style={[
+              styles.modalContent,
+              { opacity: fadeAnim, transform: [{ scale: fadeAnim }] },
+            ]}
+          >
+            <Text style={styles.modalTitle}>New Notification</Text>
+            <Text style={styles.modalMessage}>
+              {notification?.message || ""}
+            </Text>
+            <TouchableOpacity
+              style={styles.modalButton}
+              onPress={async () => {
+                if (notification?.id) {
+                  await markAsRead(notification.id);
+                }
+                setIsModalVisible(false);
+                setNotification(null);
+              }}
+            >
+              <Text style={styles.modalButtonText}>Close</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -575,5 +665,44 @@ const styles = StyleSheet.create({
   centerNavIcon: {
     fontSize: 32,
     color: "#fff",
+  },
+  // New Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalContent: {
+    backgroundColor: "#1A1A1A",
+    borderRadius: 24,
+    padding: 24,
+    width: width - 48,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#333",
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#fff",
+    marginBottom: 16,
+  },
+  modalMessage: {
+    fontSize: 16,
+    color: "#ddd",
+    textAlign: "center",
+    marginBottom: 24,
+  },
+  modalButton: {
+    backgroundColor: "#6366F1",
+    paddingVertical: 12,
+    paddingHorizontal: 32,
+    borderRadius: 12,
+  },
+  modalButtonText: {
+    color: "#fff",
+    fontWeight: "600",
+    fontSize: 16,
   },
 });

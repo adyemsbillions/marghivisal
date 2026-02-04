@@ -3,14 +3,16 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Modal,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 const API_WORDS = "https://margivial.cravii.ng/api/words.php";
@@ -36,7 +38,15 @@ export default function MyWordsScreen() {
   const [fullName, setFullName] = useState<string>("");
   const [loading, setLoading] = useState(true);
 
-  // Load full_name from storage (same place suggest screen uses)
+  // Edit modal states
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editingSuggestion, setEditingSuggestion] = useState<Suggestion | null>(
+    null,
+  );
+  const [editLocalPhrase, setEditLocalPhrase] = useState("");
+  const [editEnglishMeaning, setEditEnglishMeaning] = useState("");
+  const [editContext, setEditContext] = useState("");
+
   useEffect(() => {
     const loadUser = async () => {
       try {
@@ -44,18 +54,15 @@ export default function MyWordsScreen() {
         if (stored) {
           const parsed = JSON.parse(stored);
           const name = parsed?.full_name?.trim();
-          if (name) {
-            setFullName(name);
-          }
+          if (name) setFullName(name);
         }
       } catch (err) {
-        console.warn("Could not load user name", err);
+        console.warn("Failed to load user from storage", err);
       }
     };
     loadUser();
   }, []);
 
-  // Fetch suggestions once we have the name
   useEffect(() => {
     if (!fullName) return;
 
@@ -78,10 +85,9 @@ export default function MyWordsScreen() {
         }
 
         setSuggestions(data.suggestions || []);
-        // Optional: update displayed name from server response
         if (data.full_name) setFullName(data.full_name);
       } catch (err: any) {
-        Alert.alert("Error", err.message || "Could not load your suggestions");
+        Alert.alert("Error", err.message || "Could not load suggestions");
       } finally {
         setLoading(false);
       }
@@ -98,6 +104,67 @@ export default function MyWordsScreen() {
         return { color: "#ef4444", backgroundColor: "#fee2e2" };
       default:
         return { color: "#f59e0b", backgroundColor: "#fef3c7" };
+    }
+  };
+
+  const startEditing = (item: Suggestion) => {
+    setEditingSuggestion(item);
+    setEditLocalPhrase(item.local_phrase);
+    setEditEnglishMeaning(item.english_meaning);
+    setEditContext(item.context || "");
+    setEditModalVisible(true);
+  };
+
+  const saveEdit = async () => {
+    if (!editingSuggestion || !fullName) return;
+
+    const phrase = editLocalPhrase.trim();
+    const meaning = editEnglishMeaning.trim();
+    const context = editContext.trim();
+
+    if (!phrase || !meaning) {
+      Alert.alert("Error", "Local phrase and English meaning are required");
+      return;
+    }
+
+    try {
+      const res = await fetch(API_WORDS, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "update_my_suggestion",
+          full_name: fullName,
+          id: editingSuggestion.id,
+          local_phrase: phrase,
+          english_meaning: meaning,
+          context: context || null,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || data.status !== "success") {
+        throw new Error(data.error || "Update failed");
+      }
+
+      // Optimistic update
+      setSuggestions((prev) =>
+        prev.map((s) =>
+          s.id === editingSuggestion.id
+            ? {
+                ...s,
+                local_phrase: phrase,
+                english_meaning: meaning,
+                context: context || null,
+              }
+            : s,
+        ),
+      );
+
+      Alert.alert("Success", "Suggestion updated!");
+      setEditModalVisible(false);
+    } catch (err: any) {
+      Alert.alert("Error", err.message || "Could not update suggestion");
     }
   };
 
@@ -155,6 +222,23 @@ export default function MyWordsScreen() {
                     </Text>
                   </View>
 
+                  {/* Only show edit button for APPROVED suggestions */}
+                  {item.status === "approved" && (
+                    <TouchableOpacity
+                      style={[
+                        styles.editButton,
+                        { backgroundColor: "#dbeafe" },
+                      ]}
+                      onPress={() => startEditing(item)}
+                    >
+                      <Text
+                        style={[styles.editButtonText, { color: "#1d4ed8" }]}
+                      >
+                        ✎ Edit
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+
                   <Text style={styles.phrase}>{item.local_phrase}</Text>
                   <Text style={styles.meaning}>→ {item.english_meaning}</Text>
                   {item.context ? (
@@ -170,6 +254,62 @@ export default function MyWordsScreen() {
           </>
         )}
       </ScrollView>
+
+      {/* Edit Modal */}
+      <Modal
+        visible={editModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setEditModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Edit Approved Suggestion</Text>
+
+            <Text style={styles.label}>Local Phrase</Text>
+            <TextInput
+              style={styles.input}
+              value={editLocalPhrase}
+              onChangeText={setEditLocalPhrase}
+              placeholder="Phrase in local language"
+            />
+
+            <Text style={styles.label}>English Meaning</Text>
+            <TextInput
+              style={styles.input}
+              value={editEnglishMeaning}
+              onChangeText={setEditEnglishMeaning}
+              placeholder="English translation"
+            />
+
+            <Text style={styles.label}>Context (optional)</Text>
+            <TextInput
+              style={[styles.input, styles.textArea]}
+              value={editContext}
+              onChangeText={setEditContext}
+              placeholder="When/how is this used? (optional)"
+              multiline
+              numberOfLines={4}
+            />
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalBtn, styles.cancelBtn]}
+                onPress={() => setEditModalVisible(false)}
+              >
+                <Text style={styles.btnTextCancel}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.modalBtn, styles.saveBtn]}
+                onPress={saveEdit}
+              >
+                <Text style={styles.btnText}>Save Changes</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -199,7 +339,6 @@ const styles = StyleSheet.create({
   },
 
   emptyContainer: {
-    flex: 1,
     alignItems: "center",
     justifyContent: "center",
     marginTop: 100,
@@ -243,11 +382,29 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600",
   },
+
+  editButton: {
+    position: "absolute",
+    top: 12,
+    left: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: "#dbeafe",
+    borderRadius: 8,
+    zIndex: 10,
+  },
+  editButtonText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#1d4ed8",
+  },
+
   phrase: {
     fontSize: 17,
     fontWeight: "600",
     color: "#111",
     marginBottom: 6,
+    paddingLeft: 80, // space for edit button
   },
   meaning: {
     fontSize: 16,
@@ -264,5 +421,73 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#9ca3af",
     marginTop: 4,
+  },
+
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 24,
+    width: "100%",
+    maxWidth: 480,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    marginBottom: 24,
+    textAlign: "center",
+  },
+  label: {
+    fontSize: 14,
+    color: "#4b5563",
+    marginTop: 16,
+    marginBottom: 6,
+    fontWeight: "500",
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: "#d1d5db",
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    backgroundColor: "#fafafa",
+  },
+  textArea: {
+    minHeight: 80,
+    textAlignVertical: "top",
+  },
+  modalButtons: {
+    flexDirection: "row",
+    marginTop: 32,
+    gap: 12,
+  },
+  modalBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 10,
+    alignItems: "center",
+  },
+  cancelBtn: {
+    backgroundColor: "#e5e7eb",
+  },
+  saveBtn: {
+    backgroundColor: "#10b981",
+  },
+  btnText: {
+    color: "white",
+    fontWeight: "600",
+    fontSize: 16,
+  },
+  btnTextCancel: {
+    color: "#374151",
+    fontWeight: "600",
+    fontSize: 16,
   },
 });

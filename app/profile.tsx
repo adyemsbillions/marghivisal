@@ -203,6 +203,10 @@ export default function Profile() {
     router.push("/donate");
   };
 
+  const goToMySuggestions = () => {
+    router.push("/words");
+  };
+
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
@@ -268,6 +272,14 @@ export default function Profile() {
             <Text style={styles.statLabel}>Favorite</Text>
           </View>
         </View>
+
+        {/* My Suggestions Button */}
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={goToMySuggestions}
+        >
+          <Text style={styles.actionButtonText}>My Suggestions</Text>
+        </TouchableOpacity>
 
         {/* Favorite Language Selector */}
         <View style={styles.section}>

@@ -216,7 +216,7 @@ export default function WelcomeScreen() {
               <Text
                 style={[styles.goText, { fontSize: GO_BUTTON_SIZE * 0.38 }]}
               >
-                GET STARTED
+                start
               </Text>
             </LinearGradient>
           </TouchableOpacity>
