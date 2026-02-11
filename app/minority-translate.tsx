@@ -35,11 +35,25 @@ const staticDictionary: Record<
   },
 };
 
-// Updated language list with all requested languages
+// Updated language list — now includes all requested languages
 const languages = [
   { key: "en", name: "English", flag: "https://flagcdn.com/w320/us.png" },
+{ key: "marghi", name: "Margi", flag: "https://flagcdn.com/w320/ng.png" },
+  // Requested additions
   { key: "he", name: "Hebrew", flag: "https://flagcdn.com/w320/il.png" },
-  { key: "marghi", name: "Margi", flag: "https://flagcdn.com/w320/ng.png" },
+  { key: "pcm", name: "Nigerian Pidgin", flag: "https://flagcdn.com/w320/ng.png" },
+  { key: "tiv", name: "Tiv", flag: "https://flagcdn.com/w320/ng.png" },
+  { key: "kr", name: "Kanuri", flag: "https://flagcdn.com/w320/ng.png" },
+  { key: "ff", name: "Fulfulde (Fula)", flag: "https://flagcdn.com/w320/ng.png" },
+  { key: "ibb", name: "Ibibio", flag: "https://flagcdn.com/w320/ng.png" },
+  { key: "efi", name: "Efik", flag: "https://flagcdn.com/w320/ng.png" },
+  { key: "ann", name: "Obolo (Andoni)", flag: "https://flagcdn.com/w320/ng.png" },
+  { key: "bin", name: "Edo (Bini)", flag: "https://flagcdn.com/w320/ng.png" },
+  { key: "bom", name: "Berom", flag: "https://flagcdn.com/w320/ng.png" },
+  { key: "kcg", name: "Tyap (Katab)", flag: "https://flagcdn.com/w320/ng.png" },
+
+  // Original minority languages
+  
   { key: "hona", name: "Hona", flag: "https://flagcdn.com/w320/ng.png" },
   { key: "glavda", name: "Glavda", flag: "https://flagcdn.com/w320/ng.png" },
   { key: "bwr", name: "Bura", flag: "https://flagcdn.com/w320/ng.png" },
@@ -47,6 +61,8 @@ const languages = [
   { key: "hig", name: "Kamwe", flag: "https://flagcdn.com/w320/ng.png" },
   { key: "ckl", name: "Kibaku", flag: "https://flagcdn.com/w320/ng.png" },
   { key: "gnb", name: "Gavva", flag: "https://flagcdn.com/w320/ng.png" },
+
+  // Optional extra
   { key: "rw", name: "Kinyarwanda", flag: "https://flagcdn.com/w320/rw.png" },
 ];
 

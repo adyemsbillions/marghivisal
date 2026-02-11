@@ -18,22 +18,36 @@ const API_SUBMIT = "https://margivial.cravii.ng/api/submit-suggestion.php";
 
 const languages = [
   { code: "en", name: "English" },
-  { code: "he", name: "Hebrew" }, // ← added
+
+  // Major Nigerian + requested languages
   { code: "ha", name: "Hausa" },
   { code: "yo", name: "Yoruba" },
   { code: "ig", name: "Igbo" },
   { code: "pcm", name: "Nigerian Pidgin" },
-  { code: "mrt", name: "Margi" },
-  { code: "bwr", name: "Bura" }, // ← added (Pabir/Bura)
-  { code: "fli", name: "Fali" }, // ← added
-  { code: "hig", name: "Kamwe" }, // ← added (Higi/Kamwe)
-  { code: "ckl", name: "Kibaku" }, // ← added (Chibok/Kibaku)
-  { code: "gnb", name: "Gavva" }, // ← added (Gvoko/Gavva)
-  { code: "hwo", name: "Hona" },
-  { code: "glw", name: "Glavda" },
   { code: "tiv", name: "Tiv" },
   { code: "kr", name: "Kanuri" },
-  { code: "ff", name: "Fulfulde" },
+  { code: "ff", name: "Fulfulde (Fula)" },
+  { code: "ibb", name: "Ibibio" },
+  { code: "efi", name: "Efik" },
+  { code: "ann", name: "Obolo (Andoni)" },
+  { code: "bin", name: "Edo (Bini)" },
+  { code: "bom", name: "Berom" },
+  { code: "kcg", name: "Tyap (Katab)" },
+
+  // Hebrew
+  { code: "he", name: "Hebrew" },
+
+  // Very minority / specialized languages
+  { code: "mrt", name: "Margi" },
+  { code: "hwo", name: "Hona" },
+  { code: "glw", name: "Glavda" },
+  { code: "gnb", name: "Gavva" },        // was "gnb" in your last version
+  { code: "bwr", name: "Bura" },
+  { code: "fli", name: "Fali" },
+  { code: "hig", name: "Kamwe" },
+  { code: "ckl", name: "Kibaku" },
+
+  // Optional / extra
   { code: "rw", name: "Kinyarwanda" },
 ];
 
@@ -244,10 +258,12 @@ export default function SuggestScreen() {
             style={styles.input}
             placeholder={`e.g. ${
               selectedLang.code === "he"
-                ? "Shalom..."
+                ? "Shalom aleichem..."
+                : selectedLang.code === "pcm"
+                ? "How far?"
                 : selectedLang.code === "rw"
-                  ? "Muraho..."
-                  : "Hello..."
+                ? "Muraho..."
+                : "Hello..."
             }`}
             value={localPhrase}
             onChangeText={setLocalPhrase}
@@ -305,7 +321,6 @@ export default function SuggestScreen() {
   );
 }
 
-// styles remain the same as in your previous version
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f8f9fa" },
   header: {

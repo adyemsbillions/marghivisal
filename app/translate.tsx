@@ -267,9 +267,12 @@ export default function TranslateScreen() {
     setLoading(true);
     setTranslatedText("");
     setErrorMessage(null);
+          // Nigerian Pidgin
+  
+           // Tyap (Katab)
 
     // Updated to include "gav"
-    const specialCodes = ["mrt", "hwo", "glw", "gav"];
+    const specialCodes = ["mrt", "hwo", "glw", "gav", "pcm",  "kr", "ff", "ibb", "efi", "ann",  "bin",  "bom", "kcg" ];
     const isSpecial =
       specialCodes.includes(sourceLang.code) ||
       specialCodes.includes(targetLang.code);
