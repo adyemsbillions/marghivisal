@@ -25,15 +25,18 @@ const { width, height } = Dimensions.get("window");
 const API_GET_APPROVED =
   "https://margivial.cravii.ng/api/get-approved-suggestions.php";
 
-// Full language list
+// Full and consistent language list across the app
 const languageOptions = [
   { key: "marghi", name: "Margi", flag: "https://flagcdn.com/w320/ng.png" },
   { key: "hona", name: "Hona", flag: "https://flagcdn.com/w320/ng.png" },
   { key: "glavda", name: "Glavda", flag: "https://flagcdn.com/w320/ng.png" },
-  { key: "mrt", name: "Margi (alt)", flag: "https://flagcdn.com/w320/ng.png" },
-  { key: "hwo", name: "Hona (alt)", flag: "https://flagcdn.com/w320/ng.png" },
-  { key: "glw", name: "Glavda (alt)", flag: "https://flagcdn.com/w320/ng.png" },
-  { key: "gav", name: "Gavva", flag: "https://flagcdn.com/w320/ng.png" },
+  { key: "gnb", name: "Gavva", flag: "https://flagcdn.com/w320/ng.png" },
+  { key: "bwr", name: "Bura", flag: "https://flagcdn.com/w320/ng.png" },
+  { key: "fli", name: "Fali", flag: "https://flagcdn.com/w320/ng.png" },
+  { key: "hig", name: "Kamwe", flag: "https://flagcdn.com/w320/ng.png" },
+  { key: "ckl", name: "Kibaku", flag: "https://flagcdn.com/w320/ng.png" },
+
+  // Major Nigerian languages
   { key: "ha", name: "Hausa", flag: "https://flagcdn.com/w320/ng.png" },
   { key: "yo", name: "Yoruba", flag: "https://flagcdn.com/w320/ng.png" },
   { key: "ig", name: "Igbo", flag: "https://flagcdn.com/w320/ng.png" },
@@ -49,6 +52,20 @@ const languageOptions = [
     name: "Fulfulde (Fula)",
     flag: "https://flagcdn.com/w320/ng.png",
   },
+  { key: "ibb", name: "Ibibio", flag: "https://flagcdn.com/w320/ng.png" },
+  { key: "efi", name: "Efik", flag: "https://flagcdn.com/w320/ng.png" },
+  {
+    key: "ann",
+    name: "Obolo (Andoni)",
+    flag: "https://flagcdn.com/w320/ng.png",
+  },
+  { key: "bin", name: "Edo (Bini)", flag: "https://flagcdn.com/w320/ng.png" },
+  { key: "bom", name: "Berom", flag: "https://flagcdn.com/w320/ng.png" },
+  { key: "kcg", name: "Tyap (Katab)", flag: "https://flagcdn.com/w320/ng.png" },
+
+  // Others
+  { key: "he", name: "Hebrew", flag: "https://flagcdn.com/w320/il.png" },
+  { key: "rw", name: "Kinyarwanda", flag: "https://flagcdn.com/w320/rw.png" },
 ];
 
 export default function Learn() {
@@ -59,7 +76,7 @@ export default function Learn() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [progress, setProgress] = useState({});
   const [loading, setLoading] = useState(true);
-  const [fetchError, setFetchError] = useState(null);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [showLanguagePicker, setShowLanguagePicker] = useState(false);
   const [showCompletionModal, setShowCompletionModal] = useState(false);
   const [celebrationAnim] = useState(new Animated.Value(0));
@@ -86,21 +103,23 @@ export default function Learn() {
         throw new Error(data.error || "Failed to load lessons");
       }
 
-      const formatted = (data.suggestions || []).map((item, idx) => ({
-        id: idx + 1,
-        english: item.english_meaning,
-        local: item.local_phrase,
-        audioLang: selectedLang.key === "ha" ? "ha" : "en",
-        explanation: item.context || "Community-contributed phrase",
-        category: "Community Lesson",
-      }));
+      const formatted = (data.suggestions || []).map(
+        (item: any, idx: number) => ({
+          id: idx + 1,
+          english: item.english_meaning,
+          local: item.local_phrase,
+          audioLang: selectedLang.key === "ha" ? "ha" : "en",
+          explanation: item.context || "Community-contributed phrase",
+          category: "Community Lesson",
+        }),
+      );
 
       setLessons(formatted);
 
       if (formatted.length === 0) {
         setFetchError(`No approved lessons yet for ${selectedLang.name}.`);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Fetch error:", err);
       setFetchError("Could not load lessons. Please check your connection.");
     } finally {
@@ -141,7 +160,6 @@ export default function Learn() {
     if (currentIndex < lessons.length - 1) {
       setCurrentIndex(currentIndex + 1);
     } else {
-      // Show completion modal with animation
       setShowCompletionModal(true);
       Animated.spring(celebrationAnim, {
         toValue: 1,
@@ -163,7 +181,7 @@ export default function Learn() {
     });
   };
 
-  const speak = (text, langCode = "en") => {
+  const speak = (text: string, langCode = "en") => {
     if (!text) return;
     Speech.speak(text, {
       language: langCode,
@@ -172,8 +190,10 @@ export default function Learn() {
     });
   };
 
-  // Confetti particle component
-  const ConfettiParticle = ({ delay, color, startX }) => {
+  // ────────────────────────────────────────────────
+  // Confetti Particle (unchanged)
+  // ────────────────────────────────────────────────
+  const ConfettiParticle = ({ delay, color, startX }: any) => {
     const [particleAnim] = useState(new Animated.Value(0));
 
     useEffect(() => {
@@ -229,7 +249,7 @@ export default function Learn() {
     );
   };
 
-  // Completion Modal
+  // Completion Modal (mostly unchanged)
   const CompletionModal = () => {
     const confettiColors = [
       "#6366f1",
@@ -259,7 +279,6 @@ export default function Learn() {
         onRequestClose={closeCompletionModal}
       >
         <View style={styles.completionOverlay}>
-          {/* Confetti */}
           {Array.from({ length: confettiCount }).map((_, i) => (
             <ConfettiParticle
               key={i}
@@ -269,29 +288,22 @@ export default function Learn() {
             />
           ))}
 
-          {/* Modal Content */}
           <Animated.View
             style={[
               styles.completionContent,
-              {
-                transform: [{ scale }],
-                opacity,
-              },
+              { transform: [{ scale }], opacity },
             ]}
           >
-            {/* Trophy Icon */}
             <View style={styles.trophyContainer}>
               <Text style={styles.trophyIcon}>🏆</Text>
               <View style={styles.trophyGlow} />
             </View>
 
-            {/* Celebration Text */}
             <Text style={styles.completionTitle}>Amazing Work!</Text>
             <Text style={styles.completionSubtitle}>
               You've completed all {lessons.length} {selectedLang.name} lessons!
             </Text>
 
-            {/* Stats */}
             <View style={styles.completionStats}>
               <View style={styles.statBox}>
                 <Text style={styles.statNumber}>{lessons.length}</Text>
@@ -306,7 +318,6 @@ export default function Learn() {
               </View>
             </View>
 
-            {/* Achievement Badge */}
             <View style={styles.achievementBadge}>
               <Text style={styles.achievementIcon}>⭐</Text>
               <Text style={styles.achievementText}>
@@ -314,7 +325,6 @@ export default function Learn() {
               </Text>
             </View>
 
-            {/* Buttons */}
             <TouchableOpacity
               style={styles.restartButton}
               onPress={closeCompletionModal}
@@ -422,7 +432,7 @@ export default function Learn() {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Enhanced Header */}
+      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
           onPress={() => router.back()}
@@ -456,7 +466,7 @@ export default function Learn() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Enhanced Progress Bar */}
+        {/* Progress Bar */}
         <View style={styles.progressContainer}>
           <View style={styles.progressHeader}>
             <Text style={styles.progressLabel}>
@@ -479,7 +489,7 @@ export default function Learn() {
         {/* Lesson Content */}
         {loading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#6366f1" />
+            <ActivityIndicator size="large" color="#10b981" />
             <Text style={styles.loadingText}>Loading lessons...</Text>
           </View>
         ) : fetchError ? (
@@ -554,7 +564,7 @@ export default function Learn() {
             <Text style={styles.emptyIcon}>📚</Text>
             <Text style={styles.emptyTitle}>No Lessons Yet</Text>
             <Text style={styles.emptyText}>
-              No approved lessons for {selectedLang.name}.{"\n"}
+              No approved lessons for {selectedLang.name} yet.{"\n"}
               Help grow the collection by suggesting phrases!
             </Text>
             <TouchableOpacity
@@ -566,7 +576,7 @@ export default function Learn() {
           </View>
         )}
 
-        {/* Compact Stats */}
+        {/* Stats */}
         {Object.keys(progress).length > 0 && (
           <View style={styles.statsCard}>
             <View style={styles.statsHeader}>
@@ -578,7 +588,7 @@ export default function Learn() {
             <View style={styles.statsGrid}>
               {languageOptions
                 .filter((lang) => progress[lang.key] > 0)
-                .slice(0, 6)
+                .slice(0, 8)
                 .map((lang) => (
                   <View key={lang.key} style={styles.statItem}>
                     <Image
@@ -597,7 +607,7 @@ export default function Learn() {
           </View>
         )}
 
-        {/* CTA Button */}
+        {/* CTA */}
         <TouchableOpacity
           style={styles.ctaButton}
           onPress={() => router.push("/suggest")}
@@ -616,13 +626,13 @@ export default function Learn() {
   );
 }
 
+// Styles (mostly unchanged, just minor tweaks for consistency)
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#f5f7fa",
   },
 
-  // Header Styles
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -671,7 +681,7 @@ const styles = StyleSheet.create({
   },
   dropdownIcon: {
     fontSize: 10,
-    color: "#6366f1",
+    color: "#10b981",
     marginTop: 2,
   },
   headerRight: {
@@ -681,7 +691,7 @@ const styles = StyleSheet.create({
   streakBadge: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#fef3c7",
+    backgroundColor: "#ecfdf5",
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 20,
@@ -693,7 +703,7 @@ const styles = StyleSheet.create({
   streakCount: {
     fontSize: 13,
     fontWeight: "700",
-    color: "#92400e",
+    color: "#065f46",
   },
 
   scrollContent: {
@@ -701,7 +711,6 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
 
-  // Progress Bar
   progressContainer: {
     marginBottom: 20,
     backgroundColor: "#ffffff",
@@ -726,7 +735,7 @@ const styles = StyleSheet.create({
   },
   progressPercent: {
     fontSize: 14,
-    color: "#6366f1",
+    color: "#10b981",
     fontWeight: "700",
   },
   progressBarOuter: {
@@ -737,11 +746,10 @@ const styles = StyleSheet.create({
   },
   progressBarInner: {
     height: "100%",
-    backgroundColor: "#6366f1",
+    backgroundColor: "#10b981",
     borderRadius: 8,
   },
 
-  // Lesson Card
   lessonCard: {
     backgroundColor: "#ffffff",
     borderRadius: 20,
@@ -802,7 +810,7 @@ const styles = StyleSheet.create({
   localPhrase: {
     fontSize: 28,
     fontWeight: "700",
-    color: "#6366f1",
+    color: "#10b981",
     lineHeight: 38,
   },
 
@@ -825,8 +833,8 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   audioBtnPrimary: {
-    backgroundColor: "#eef2ff",
-    borderColor: "#c7d2fe",
+    backgroundColor: "#ecfdf5",
+    borderColor: "#a7f3d0",
   },
   audioIcon: {
     fontSize: 18,
@@ -838,36 +846,36 @@ const styles = StyleSheet.create({
   },
   audioBtnTextPrimary: {
     fontSize: 14,
-    color: "#6366f1",
+    color: "#065f46",
     fontWeight: "700",
   },
 
   explanationBox: {
-    backgroundColor: "#fefce8",
+    backgroundColor: "#ecfdf5",
     borderRadius: 12,
     padding: 16,
     marginBottom: 24,
     borderLeftWidth: 4,
-    borderLeftColor: "#fbbf24",
+    borderLeftColor: "#10b981",
   },
   explanationLabel: {
     fontSize: 13,
     fontWeight: "700",
-    color: "#92400e",
+    color: "#065f46",
     marginBottom: 6,
   },
   explanation: {
     fontSize: 14,
-    color: "#78350f",
+    color: "#064e3b",
     lineHeight: 20,
   },
 
   learnedBtn: {
-    backgroundColor: "#6366f1",
+    backgroundColor: "#10b981",
     borderRadius: 14,
     paddingVertical: 16,
     alignItems: "center",
-    shadowColor: "#6366f1",
+    shadowColor: "#10b981",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -879,7 +887,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 
-  // Loading State
   loadingContainer: {
     alignItems: "center",
     paddingVertical: 60,
@@ -891,7 +898,6 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
 
-  // Error State
   errorContainer: {
     alignItems: "center",
     paddingVertical: 40,
@@ -909,7 +915,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   retryButton: {
-    backgroundColor: "#6366f1",
+    backgroundColor: "#10b981",
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 12,
@@ -920,7 +926,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 
-  // Empty State
   emptyState: {
     alignItems: "center",
     paddingVertical: 50,
@@ -944,7 +949,7 @@ const styles = StyleSheet.create({
     marginBottom: 28,
   },
   suggestButton: {
-    backgroundColor: "#6366f1",
+    backgroundColor: "#10b981",
     paddingHorizontal: 28,
     paddingVertical: 14,
     borderRadius: 12,
@@ -955,7 +960,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 
-  // Stats Card
   statsCard: {
     backgroundColor: "#ffffff",
     borderRadius: 16,
@@ -981,7 +985,7 @@ const styles = StyleSheet.create({
   totalLessons: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#6366f1",
+    color: "#10b981",
   },
   statsGrid: {
     gap: 12,
@@ -1014,7 +1018,6 @@ const styles = StyleSheet.create({
     color: "#6b7280",
   },
 
-  // CTA Button
   ctaButton: {
     backgroundColor: "#10b981",
     borderRadius: 16,
@@ -1042,7 +1045,7 @@ const styles = StyleSheet.create({
     height: 20,
   },
 
-  // Modal Styles
+  // Modal styles (unchanged)
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.6)",
@@ -1105,7 +1108,7 @@ const styles = StyleSheet.create({
     borderBottomColor: "#f3f4f6",
   },
   langItemSelected: {
-    backgroundColor: "#eef2ff",
+    backgroundColor: "#ecfdf5",
   },
   langFlag: {
     width: 40,
@@ -1121,11 +1124,10 @@ const styles = StyleSheet.create({
   },
   checkmark: {
     fontSize: 20,
-    color: "#6366f1",
+    color: "#10b981",
     fontWeight: "700",
   },
 
-  // Completion Modal Styles
   completionOverlay: {
     flex: 1,
     backgroundColor: "rgba(0, 0, 0, 0.85)",
@@ -1166,7 +1168,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "#fbbf24",
+    backgroundColor: "#10b981",
     borderRadius: 100,
     opacity: 0.2,
     transform: [{ scale: 1.5 }],
@@ -1202,7 +1204,7 @@ const styles = StyleSheet.create({
   statNumber: {
     fontSize: 36,
     fontWeight: "800",
-    color: "#6366f1",
+    color: "#10b981",
     marginBottom: 4,
   },
   statLabel: {
@@ -1219,7 +1221,7 @@ const styles = StyleSheet.create({
   achievementBadge: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#fef3c7",
+    backgroundColor: "#ecfdf5",
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 100,
@@ -1232,17 +1234,17 @@ const styles = StyleSheet.create({
   achievementText: {
     fontSize: 14,
     fontWeight: "700",
-    color: "#92400e",
+    color: "#065f46",
   },
   restartButton: {
-    backgroundColor: "#6366f1",
+    backgroundColor: "#10b981",
     borderRadius: 16,
     paddingVertical: 16,
     paddingHorizontal: 32,
     width: "100%",
     alignItems: "center",
     marginBottom: 12,
-    shadowColor: "#6366f1",
+    shadowColor: "#10b981",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -1254,14 +1256,14 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   continueButton: {
-    backgroundColor: "#10b981",
+    backgroundColor: "#6366f1",
     borderRadius: 16,
     paddingVertical: 16,
     paddingHorizontal: 32,
     width: "100%",
     alignItems: "center",
     marginBottom: 12,
-    shadowColor: "#10b981",
+    shadowColor: "#6366f1",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,

@@ -37,11 +37,11 @@ const languages = [
   // Hebrew
   { code: "he", name: "Hebrew" },
 
-  // Very minority / specialized languages
+  // Minority / specialized languages
   { code: "mrt", name: "Margi" },
   { code: "hwo", name: "Hona" },
   { code: "glw", name: "Glavda" },
-  { code: "gnb", name: "Gavva" },        // was "gnb" in your last version
+  { code: "gnb", name: "Gavva" },
   { code: "bwr", name: "Bura" },
   { code: "fli", name: "Fali" },
   { code: "hig", name: "Kamwe" },
@@ -50,7 +50,6 @@ const languages = [
   // Optional / extra
   { code: "rw", name: "Kinyarwanda" },
 ];
-
 export default function SuggestScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{
@@ -260,10 +259,10 @@ export default function SuggestScreen() {
               selectedLang.code === "he"
                 ? "Shalom aleichem..."
                 : selectedLang.code === "pcm"
-                ? "How far?"
-                : selectedLang.code === "rw"
-                ? "Muraho..."
-                : "Hello..."
+                  ? "How far?"
+                  : selectedLang.code === "rw"
+                    ? "Muraho..."
+                    : "Hello..."
             }`}
             value={localPhrase}
             onChangeText={setLocalPhrase}

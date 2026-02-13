@@ -18,7 +18,8 @@ import {
   View,
 } from "react-native";
 
-const { width } = Dimensions.get("window");
+const { width, height } = Dimensions.get("window");
+const isSmallScreen = width < 380;
 
 type TranslationEntry = {
   fromFlag: string;
@@ -63,13 +64,11 @@ export default function Dashboard() {
 
     const loadData = async () => {
       try {
-        // Load user from storage
         const storedUser = await AsyncStorage.getItem("user");
         if (storedUser) {
           setUser(JSON.parse(storedUser));
         }
 
-        // Load translation history
         const stored = await AsyncStorage.getItem("translationHistory");
         if (stored) {
           const parsed = JSON.parse(stored) as TranslationEntry[];
@@ -107,7 +106,7 @@ export default function Dashboard() {
       const data = await response.json();
 
       if (data.notifications && data.notifications.length > 0) {
-        setNotification(data.notifications[0]); // Show the latest unread
+        setNotification(data.notifications[0]);
         setIsModalVisible(true);
       }
     } catch (error) {
@@ -162,14 +161,16 @@ export default function Dashboard() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* User Greeting / Profile Section */}
+        {/* Profile / Greeting Section – now with more top margin */}
         <View style={styles.profileSection}>
           {user ? (
             <View style={styles.profileCard}>
               <Text style={styles.greeting}>
                 Welcome back, {user.full_name.split(" ")[0]}!
               </Text>
-              <Text style={styles.userDetail}>📧 {user.email}</Text>
+              <Text style={styles.userDetail} numberOfLines={1}>
+                📧 {user.email}
+              </Text>
               <Text style={styles.userDetail}>📍 {user.country}</Text>
 
               <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
@@ -314,6 +315,9 @@ export default function Dashboard() {
             )}
           </View>
         </View>
+
+        {/* Extra bottom padding to prevent content being hidden under bottom nav */}
+        <View style={{ height: 100 }} />
       </ScrollView>
 
       {/* Bottom Navigation */}
@@ -341,7 +345,7 @@ export default function Dashboard() {
         </TouchableOpacity>
       </View>
 
-      {/* Notification Popup Modal */}
+      {/* Notification Modal */}
       <Modal
         visible={isModalVisible}
         transparent={true}
@@ -389,46 +393,48 @@ const styles = StyleSheet.create({
     height: 300,
     borderRadius: 150,
     backgroundColor: "#6366F1",
-    top: -100,
+    top: -120,
     right: -100,
-    opacity: 0.15,
+    opacity: 0.12,
   },
   orb2: {
     position: "absolute",
-    width: 200,
-    height: 200,
-    borderRadius: 100,
+    width: 220,
+    height: 220,
+    borderRadius: 110,
     backgroundColor: "#8B5CF6",
-    bottom: 100,
-    left: -50,
-    opacity: 0.12,
-  },
-  scrollContent: {
-    paddingBottom: 140,
-    paddingTop: 20,
+    bottom: 80,
+    left: -80,
+    opacity: 0.1,
   },
 
-  // ── New Profile Section ─────────────────────────────────────
+  scrollContent: {
+    paddingTop: isSmallScreen ? 16 : 24,
+    paddingBottom: height > 800 ? 160 : 140,
+  },
+
+  // ── Profile Section ───────────────────────────────────────────
   profileSection: {
+    marginTop: isSmallScreen ? 8 : 16,
     marginBottom: 32,
   },
   profileCard: {
     backgroundColor: "#1A1A1A",
     borderRadius: 20,
-    padding: 20,
-    marginHorizontal: 24,
+    padding: isSmallScreen ? 16 : 20,
+    marginHorizontal: 20,
     borderWidth: 1,
     borderColor: "#333",
     alignItems: "center",
   },
   greeting: {
-    fontSize: 24,
+    fontSize: isSmallScreen ? 21 : 24,
     fontWeight: "700",
     color: "#ffffff",
     marginBottom: 12,
   },
   userDetail: {
-    fontSize: 15,
+    fontSize: isSmallScreen ? 13.5 : 15,
     color: "#cccccc",
     marginVertical: 4,
   },
@@ -436,7 +442,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
     backgroundColor: "#ef4444",
     paddingVertical: 10,
-    paddingHorizontal: 28,
+    paddingHorizontal: 32,
     borderRadius: 12,
   },
   logoutText: {
@@ -448,7 +454,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
     backgroundColor: "#6366F1",
     paddingVertical: 12,
-    paddingHorizontal: 32,
+    paddingHorizontal: 36,
     borderRadius: 12,
   },
   loginBtnText: {
@@ -457,10 +463,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
 
-  // ── Existing styles (unchanged) ─────────────────────────────
+  // ── Main CTA Card ─────────────────────────────────────────────
   mainCard: {
-    marginHorizontal: 24,
-    height: 200,
+    marginHorizontal: 20,
+    height: isSmallScreen ? 180 : 200,
     borderRadius: 24,
     overflow: "hidden",
     marginBottom: 32,
@@ -470,11 +476,11 @@ const styles = StyleSheet.create({
   },
   mainCardOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.5)",
+    backgroundColor: "rgba(0,0,0,0.55)",
   },
   mainCardContent: {
     flex: 1,
-    padding: 24,
+    padding: isSmallScreen ? 18 : 24,
     justifyContent: "center",
   },
   mainCardBadge: {
@@ -482,16 +488,16 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#818CF8",
     letterSpacing: 1,
-    marginBottom: 12,
+    marginBottom: 10,
   },
   mainCardTitle: {
-    fontSize: 32,
+    fontSize: isSmallScreen ? 26 : 32,
     fontWeight: "900",
     color: "#fff",
-    marginBottom: 8,
+    marginBottom: 6,
   },
   mainCardSubtitle: {
-    fontSize: 14,
+    fontSize: isSmallScreen ? 13 : 14,
     color: "rgba(255,255,255,0.85)",
     marginBottom: 16,
   },
@@ -507,6 +513,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#fff",
   },
+
   section: {
     marginBottom: 32,
   },
@@ -514,15 +521,15 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 24,
-    marginBottom: 16,
+    paddingHorizontal: 20,
+    marginBottom: 12,
   },
   sectionTitle: {
-    fontSize: 22,
+    fontSize: isSmallScreen ? 20 : 22,
     fontWeight: "700",
     color: "#fff",
-    paddingHorizontal: 24,
-    marginBottom: 16,
+    paddingHorizontal: 20,
+    marginBottom: 12,
   },
   seeAllText: {
     fontSize: 14,
@@ -530,7 +537,7 @@ const styles = StyleSheet.create({
     color: "#6366F1",
   },
   languageScroll: {
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
     gap: 12,
   },
   langCard: {
@@ -552,14 +559,15 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#ccc",
   },
+
   featuresGrid: {
     flexDirection: "row",
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
     gap: 12,
   },
   featureCard: {
     flex: 1,
-    padding: 20,
+    padding: 18,
     borderRadius: 20,
     borderWidth: 1,
     borderColor: "#333",
@@ -579,8 +587,9 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#999",
   },
+
   recentList: {
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
     gap: 12,
   },
   recentCard: {
@@ -621,6 +630,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
     paddingVertical: 30,
   },
+
   bottomNav: {
     position: "absolute",
     bottom: 0,
@@ -642,7 +652,7 @@ const styles = StyleSheet.create({
   },
   navItemCenter: {
     alignItems: "center",
-    marginTop: -40,
+    marginTop: -36,
   },
   navIcon: {
     fontSize: 24,
@@ -661,15 +671,21 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 8,
+    elevation: 8,
+    shadowColor: "#6366F1",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
   },
   centerNavIcon: {
     fontSize: 32,
     color: "#fff",
   },
-  // New Modal Styles
+
+  // Modal
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.6)",
+    backgroundColor: "rgba(0,0,0,0.65)",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -697,7 +713,7 @@ const styles = StyleSheet.create({
   modalButton: {
     backgroundColor: "#6366F1",
     paddingVertical: 12,
-    paddingHorizontal: 32,
+    paddingHorizontal: 40,
     borderRadius: 12,
   },
   modalButtonText: {

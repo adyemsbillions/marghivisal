@@ -27,14 +27,11 @@ const TRANSLATE_API_KEY = "73e750e113d5dcf08d22d8b4ea5bb0954c078cdb";
 
 const GEMINI_PROXY_URL = "https://margivial.cravii.ng/api/gemini-proxy.php";
 
-const APPROVED_SUGGESTIONS_URL =
-  "https://margivial.cravii.ng/api/get-approved-suggestions.php";
-
 const MAX_CHARS = 5000;
 
-// Expanded language list — 100+ languages
+// Complete and consistent language list across the app
 const languages = [
-  // Core Nigerian + Special
+  // Core / International
   { code: "en", name: "English", flag: "https://flagcdn.com/w320/gb.png" },
   { code: "ha", name: "Hausa", flag: "https://flagcdn.com/w320/ng.png" },
   { code: "yo", name: "Yoruba", flag: "https://flagcdn.com/w320/ng.png" },
@@ -45,32 +42,57 @@ const languages = [
     flag: "https://flagcdn.com/w320/ng.png",
   },
 
-  // Minority / Special languages
+  // Minority / Special languages (these redirect to /minority-translate)
   {
-    code: "mrt",
+    code: "marghi",
     name: "Margi",
     flag: "https://flagcdn.com/w320/ng.png",
     special: true,
   },
   {
-    code: "hwo",
+    code: "hona",
     name: "Hona",
     flag: "https://flagcdn.com/w320/ng.png",
     special: true,
   },
   {
-    code: "glw",
+    code: "glavda",
     name: "Glavda",
     flag: "https://flagcdn.com/w320/ng.png",
     special: true,
   },
   {
-    code: "gav",
+    code: "gnb",
     name: "Gavva",
     flag: "https://flagcdn.com/w320/ng.png",
     special: true,
   },
+  {
+    code: "bwr",
+    name: "Bura",
+    flag: "https://flagcdn.com/w320/ng.png",
+    special: true,
+  },
+  {
+    code: "fli",
+    name: "Fali",
+    flag: "https://flagcdn.com/w320/ng.png",
+    special: true,
+  },
+  {
+    code: "hig",
+    name: "Kamwe",
+    flag: "https://flagcdn.com/w320/ng.png",
+    special: true,
+  },
+  {
+    code: "ckl",
+    name: "Kibaku",
+    flag: "https://flagcdn.com/w320/ng.png",
+    special: true,
+  },
 
+  // Other Nigerian languages
   { code: "tiv", name: "Tiv", flag: "https://flagcdn.com/w320/ng.png" },
   { code: "kr", name: "Kanuri", flag: "https://flagcdn.com/w320/ng.png" },
   {
@@ -80,7 +102,6 @@ const languages = [
   },
   { code: "ibb", name: "Ibibio", flag: "https://flagcdn.com/w320/ng.png" },
   { code: "efi", name: "Efik", flag: "https://flagcdn.com/w320/ng.png" },
-  { code: "nup", name: "Nupe", flag: "https://flagcdn.com/w320/ng.png" },
   {
     code: "ann",
     name: "Obolo (Andoni)",
@@ -94,7 +115,7 @@ const languages = [
     flag: "https://flagcdn.com/w320/ng.png",
   },
 
-  // Major global + additional languages
+  // Major global languages
   { code: "ar", name: "Arabic", flag: "https://flagcdn.com/w320/sa.png" },
   {
     code: "zh",
@@ -121,31 +142,8 @@ const languages = [
   { code: "tr", name: "Turkish", flag: "https://flagcdn.com/w320/tr.png" },
   { code: "vi", name: "Vietnamese", flag: "https://flagcdn.com/w320/vn.png" },
   { code: "th", name: "Thai", flag: "https://flagcdn.com/w320/th.png" },
-  { code: "pl", name: "Polish", flag: "https://flagcdn.com/w320/pl.png" },
-  { code: "nl", name: "Dutch", flag: "https://flagcdn.com/w320/nl.png" },
-  { code: "sv", name: "Swedish", flag: "https://flagcdn.com/w320/se.png" },
-  { code: "no", name: "Norwegian", flag: "https://flagcdn.com/w320/no.png" },
-  { code: "da", name: "Danish", flag: "https://flagcdn.com/w320/dk.png" },
-  { code: "fi", name: "Finnish", flag: "https://flagcdn.com/w320/fi.png" },
-  { code: "uk", name: "Ukrainian", flag: "https://flagcdn.com/w320/ua.png" },
-  { code: "cs", name: "Czech", flag: "https://flagcdn.com/w320/cz.png" },
-  { code: "hu", name: "Hungarian", flag: "https://flagcdn.com/w320/hu.png" },
-  { code: "el", name: "Greek", flag: "https://flagcdn.com/w320/gr.png" },
   { code: "he", name: "Hebrew", flag: "https://flagcdn.com/w320/il.png" },
-  {
-    code: "fa",
-    name: "Persian (Farsi)",
-    flag: "https://flagcdn.com/w320/ir.png",
-  },
-  { code: "ro", name: "Romanian", flag: "https://flagcdn.com/w320/ro.png" },
-  { code: "ms", name: "Malay", flag: "https://flagcdn.com/w320/my.png" },
-  { code: "sw", name: "Swahili", flag: "https://flagcdn.com/w320/ke.png" },
-  { code: "am", name: "Amharic", flag: "https://flagcdn.com/w320/et.png" },
-  { code: "zu", name: "Zulu", flag: "https://flagcdn.com/w320/za.png" },
-  { code: "xh", name: "Xhosa", flag: "https://flagcdn.com/w320/za.png" },
-  { code: "so", name: "Somali", flag: "https://flagcdn.com/w320/so.png" },
   { code: "rw", name: "Kinyarwanda", flag: "https://flagcdn.com/w320/rw.png" },
-  // ... you can continue adding more if needed
 ];
 
 export default function TranslateScreen() {
@@ -153,8 +151,8 @@ export default function TranslateScreen() {
 
   const [sourceText, setSourceText] = useState("");
   const [translatedText, setTranslatedText] = useState("");
-  const [sourceLang, setSourceLang] = useState(languages[0]);
-  const [targetLang, setTargetLang] = useState(languages[1]);
+  const [sourceLang, setSourceLang] = useState(languages[0]); // English
+  const [targetLang, setTargetLang] = useState(languages[1]); // Hausa (or change to your preferred default)
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -267,18 +265,24 @@ export default function TranslateScreen() {
     setLoading(true);
     setTranslatedText("");
     setErrorMessage(null);
-          // Nigerian Pidgin
-  
-           // Tyap (Katab)
 
-    // Updated to include "gav"
-    const specialCodes = ["mrt", "hwo", "glw", "gav", "pcm",  "kr", "ff", "ibb", "efi", "ann",  "bin",  "bom", "kcg" ];
+    // Check if any selected language is a minority/special one
+    const specialCodes = [
+      "marghi",
+      "hona",
+      "glavda",
+      "gnb",
+      "bwr",
+      "fli",
+      "hig",
+      "ckl",
+    ];
+
     const isSpecial =
       specialCodes.includes(sourceLang.code) ||
       specialCodes.includes(targetLang.code);
 
     if (isSpecial) {
-      // Redirect to minority-translate for special languages
       setLoading(false);
       router.push("/minority-translate");
       return;
@@ -542,6 +546,9 @@ export default function TranslateScreen() {
   );
 }
 
+// ────────────────────────────────────────────────
+// Styles (unchanged)
+// ────────────────────────────────────────────────
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f8f9fa" },
   header: {

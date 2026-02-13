@@ -14,6 +14,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { WebView } from "react-native-webview";
 
 const API_WORDS = "https://margivial.cravii.ng/api/words.php";
 
@@ -36,6 +37,8 @@ export default function MyWordsScreen() {
 
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [fullName, setFullName] = useState<string>("");
+  const [userId, setUserId] = useState<number | null>(null);
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [loading, setLoading] = useState(true);
 
   // Edit modal states
@@ -47,6 +50,9 @@ export default function MyWordsScreen() {
   const [editEnglishMeaning, setEditEnglishMeaning] = useState("");
   const [editContext, setEditContext] = useState("");
 
+  // Admin WebView modal
+  const [showAdminWebView, setShowAdminWebView] = useState(false);
+
   useEffect(() => {
     const loadUser = async () => {
       try {
@@ -54,7 +60,13 @@ export default function MyWordsScreen() {
         if (stored) {
           const parsed = JSON.parse(stored);
           const name = parsed?.full_name?.trim();
+          const uid = parsed?.id ? Number(parsed.id) : null;
+
           if (name) setFullName(name);
+          if (uid !== null) {
+            setUserId(uid);
+            setIsAdmin([1, 2].includes(uid));
+          }
         }
       } catch (err) {
         console.warn("Failed to load user from storage", err);
@@ -175,7 +187,17 @@ export default function MyWordsScreen() {
           <Text style={styles.backIcon}>←</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>My Suggestions</Text>
-        <View style={{ width: 40 }} />
+
+        {isAdmin ? (
+          <TouchableOpacity
+            onPress={() => setShowAdminWebView(true)}
+            style={styles.adminButton}
+          >
+            <Text style={styles.adminButtonText}>Admin Privileges</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={{ width: 40 }} />
+        )}
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -222,7 +244,6 @@ export default function MyWordsScreen() {
                     </Text>
                   </View>
 
-                  {/* Only show edit button for APPROVED suggestions */}
                   {item.status === "approved" && (
                     <TouchableOpacity
                       style={[
@@ -310,6 +331,36 @@ export default function MyWordsScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Admin WebView Modal – only for ID 1 & 2 */}
+      <Modal
+        visible={showAdminWebView}
+        animationType="slide"
+        onRequestClose={() => setShowAdminWebView(false)}
+      >
+        <SafeAreaView style={{ flex: 1, backgroundColor: "#000" }}>
+          <View style={styles.webviewHeader}>
+            <TouchableOpacity
+              onPress={() => setShowAdminWebView(false)}
+              style={styles.closeWebview}
+            >
+              <Text style={styles.closeWebviewText}>Close</Text>
+            </TouchableOpacity>
+            <Text style={styles.webviewTitle}>Admin Management</Text>
+            <View style={{ width: 60 }} />
+          </View>
+
+          <WebView
+            source={{ uri: "https://margivial.cravii.ng/api/word_display.php" }}
+            style={{ flex: 1 }}
+            onError={(syntheticEvent) => {
+              const { nativeEvent } = syntheticEvent;
+              console.warn("WebView error:", nativeEvent);
+              Alert.alert("Error", "Could not load admin page");
+            }}
+          />
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -327,6 +378,18 @@ const styles = StyleSheet.create({
   },
   backIcon: { fontSize: 32, color: "#333" },
   headerTitle: { fontSize: 20, fontWeight: "bold" },
+
+  adminButton: {
+    backgroundColor: "#7c3aed", // purple for admin feel
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+  },
+  adminButtonText: {
+    color: "white",
+    fontWeight: "600",
+    fontSize: 14,
+  },
 
   scrollContent: { padding: 20, paddingBottom: 40 },
 
@@ -489,5 +552,27 @@ const styles = StyleSheet.create({
     color: "#374151",
     fontWeight: "600",
     fontSize: 16,
+  },
+
+  // WebView header styles
+  webviewHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: 16,
+    backgroundColor: "#111827",
+  },
+  webviewTitle: {
+    color: "white",
+    fontSize: 18,
+    fontWeight: "600",
+  },
+  closeWebview: {
+    padding: 8,
+  },
+  closeWebviewText: {
+    color: "#60a5fa",
+    fontSize: 16,
+    fontWeight: "500",
   },
 });
