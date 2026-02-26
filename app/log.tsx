@@ -28,7 +28,7 @@ export default function LogScreen() {
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [country, setCountry] = useState("Nigeria");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [authChecking, setAuthChecking] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
 
@@ -256,22 +256,26 @@ export default function LogScreen() {
 
   const handleSubmit = async () => {
     if (loading) return;
+
     if (!email.trim() || !password.trim()) {
       Alert.alert("Error", "Email and password are required");
       return;
     }
+
     if (!isLogin && (!fullName.trim() || !country.trim())) {
       Alert.alert("Error", "Full name and country are required for signup");
       return;
     }
 
     setLoading(true);
+
     try {
       const payload: any = {
         action: isLogin ? "login" : "signup",
         email: email.trim().toLowerCase(),
         password,
       };
+
       if (!isLogin) {
         payload.full_name = fullName.trim();
         payload.country = country;
@@ -306,6 +310,7 @@ export default function LogScreen() {
         ],
       );
 
+      // Clear fields
       setEmail("");
       setPassword("");
       if (!isLogin) {
@@ -406,6 +411,19 @@ export default function LogScreen() {
                 </TouchableOpacity>
               </View>
 
+              {/* Forgot Password Link - only shown when in login mode */}
+              {isLogin && (
+                <TouchableOpacity
+                  style={styles.forgotPasswordContainer}
+                  onPress={() => router.push("/forget")}
+                  disabled={loading}
+                >
+                  <Text style={styles.forgotPasswordText}>
+                    Forgot Password?
+                  </Text>
+                </TouchableOpacity>
+              )}
+
               {!isLogin && (
                 <>
                   <Text style={styles.label}>Country</Text>
@@ -430,7 +448,10 @@ export default function LogScreen() {
               )}
 
               <TouchableOpacity
-                style={styles.submitButton}
+                style={[
+                  styles.submitButton,
+                  loading && styles.submitButtonDisabled,
+                ]}
                 onPress={handleSubmit}
                 disabled={loading}
               >
@@ -542,6 +563,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 4,
   },
+  forgotPasswordContainer: {
+    alignSelf: "flex-end",
+    marginTop: 8,
+    marginBottom: 24,
+  },
+  forgotPasswordText: {
+    color: "#4CAF50",
+    fontSize: 15,
+    fontWeight: "500",
+  },
   pickerContainer: {
     width: "100%",
     height: 54,
@@ -563,12 +594,15 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     justifyContent: "center",
     alignItems: "center",
-    marginTop: 32,
+    marginTop: 16,
     shadowColor: "#4CAF50",
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.4,
     shadowRadius: 12,
     elevation: 8,
+  },
+  submitButtonDisabled: {
+    opacity: 0.7,
   },
   submitButtonText: {
     color: "#ffffff",

@@ -21,11 +21,8 @@ import {
 
 const { width, height } = Dimensions.get("window");
 
-// API to fetch approved suggestions
-const API_GET_APPROVED =
-  "https://margivial.cravii.ng/api/get-approved-suggestions.php";
+const API_GET_APPROVED = "https://margivial.cravii.ng/api/get-approved-suggestions.php";
 
-// Full and consistent language list across the app
 const languageOptions = [
   { key: "marghi", name: "Margi", flag: "https://flagcdn.com/w320/ng.png" },
   { key: "hona", name: "Hona", flag: "https://flagcdn.com/w320/ng.png" },
@@ -35,35 +32,19 @@ const languageOptions = [
   { key: "fli", name: "Fali", flag: "https://flagcdn.com/w320/ng.png" },
   { key: "hig", name: "Kamwe", flag: "https://flagcdn.com/w320/ng.png" },
   { key: "ckl", name: "Kibaku", flag: "https://flagcdn.com/w320/ng.png" },
-
-  // Major Nigerian languages
   { key: "ha", name: "Hausa", flag: "https://flagcdn.com/w320/ng.png" },
   { key: "yo", name: "Yoruba", flag: "https://flagcdn.com/w320/ng.png" },
   { key: "ig", name: "Igbo", flag: "https://flagcdn.com/w320/ng.png" },
-  {
-    key: "pcm",
-    name: "Nigerian Pidgin",
-    flag: "https://flagcdn.com/w320/ng.png",
-  },
+  { key: "pcm", name: "Nigerian Pidgin", flag: "https://flagcdn.com/w320/ng.png" },
   { key: "tiv", name: "Tiv", flag: "https://flagcdn.com/w320/ng.png" },
   { key: "kr", name: "Kanuri", flag: "https://flagcdn.com/w320/ng.png" },
-  {
-    key: "ff",
-    name: "Fulfulde (Fula)",
-    flag: "https://flagcdn.com/w320/ng.png",
-  },
+  { key: "ff", name: "Fulfulde (Fula)", flag: "https://flagcdn.com/w320/ng.png" },
   { key: "ibb", name: "Ibibio", flag: "https://flagcdn.com/w320/ng.png" },
   { key: "efi", name: "Efik", flag: "https://flagcdn.com/w320/ng.png" },
-  {
-    key: "ann",
-    name: "Obolo (Andoni)",
-    flag: "https://flagcdn.com/w320/ng.png",
-  },
+  { key: "ann", name: "Obolo (Andoni)", flag: "https://flagcdn.com/w320/ng.png" },
   { key: "bin", name: "Edo (Bini)", flag: "https://flagcdn.com/w320/ng.png" },
   { key: "bom", name: "Berom", flag: "https://flagcdn.com/w320/ng.png" },
   { key: "kcg", name: "Tyap (Katab)", flag: "https://flagcdn.com/w320/ng.png" },
-
-  // Others
   { key: "he", name: "Hebrew", flag: "https://flagcdn.com/w320/il.png" },
   { key: "rw", name: "Kinyarwanda", flag: "https://flagcdn.com/w320/rw.png" },
 ];
@@ -72,12 +53,15 @@ export default function Learn() {
   const router = useRouter();
 
   const [selectedLang, setSelectedLang] = useState(languageOptions[0]);
-  const [lessons, setLessons] = useState([]);
+  const [allLessons, setAllLessons] = useState<any[]>([]);
+  const [activeLessons, setActiveLessons] = useState<any[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [progress, setProgress] = useState({});
+  const [progress, setProgress] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [showLanguagePicker, setShowLanguagePicker] = useState(false);
+  const [showSessionPicker, setShowSessionPicker] = useState(false);
+  const [sessionLength, setSessionLength] = useState<number | "all">(10);
   const [showCompletionModal, setShowCompletionModal] = useState(false);
   const [celebrationAnim] = useState(new Animated.Value(0));
 
@@ -92,7 +76,6 @@ export default function Learn() {
   const fetchLessons = async () => {
     setLoading(true);
     setFetchError(null);
-    setLessons([]);
 
     try {
       const url = `${API_GET_APPROVED}?language_key=${encodeURIComponent(selectedLang.key)}`;
@@ -103,18 +86,17 @@ export default function Learn() {
         throw new Error(data.error || "Failed to load lessons");
       }
 
-      const formatted = (data.suggestions || []).map(
-        (item: any, idx: number) => ({
-          id: idx + 1,
-          english: item.english_meaning,
-          local: item.local_phrase,
-          audioLang: selectedLang.key === "ha" ? "ha" : "en",
-          explanation: item.context || "Community-contributed phrase",
-          category: "Community Lesson",
-        }),
-      );
+      const formatted = (data.suggestions || []).map((item: any, idx: number) => ({
+        id: idx + 1,
+        english: item.english_meaning,
+        local: item.local_phrase,
+        audioLang: selectedLang.key === "ha" ? "ha" : "en",
+        explanation: item.context || "Community-contributed phrase",
+        category: "Community Lesson",
+      }));
 
-      setLessons(formatted);
+      setAllLessons(formatted);
+      applySessionLength(formatted, sessionLength);
 
       if (formatted.length === 0) {
         setFetchError(`No approved lessons yet for ${selectedLang.name}.`);
@@ -127,12 +109,25 @@ export default function Learn() {
     }
   };
 
+  const applySessionLength = (lessons: any[], length: number | "all") => {
+    let selected: any[] = [];
+    if (length === "all") {
+      selected = [...lessons];
+    } else {
+      const count = Math.min(length as number, lessons.length);
+      selected = lessons.slice(0, count);
+      // Want random order? Uncomment next two lines:
+      // const shuffled = [...lessons].sort(() => Math.random() - 0.5);
+      // selected = shuffled.slice(0, count);
+    }
+    setActiveLessons(selected);
+    setCurrentIndex(0);
+  };
+
   const loadProgress = async () => {
     try {
       const saved = await AsyncStorage.getItem("learnProgress");
-      if (saved) {
-        setProgress(JSON.parse(saved));
-      }
+      if (saved) setProgress(JSON.parse(saved));
     } catch (e) {
       console.warn("Failed to load progress", e);
     }
@@ -146,7 +141,7 @@ export default function Learn() {
     }
   };
 
-  const currentLesson = lessons[currentIndex] || null;
+  const currentLesson = activeLessons[currentIndex] || null;
 
   const markAsLearned = () => {
     if (!currentLesson) return;
@@ -157,7 +152,7 @@ export default function Learn() {
     setProgress(newProgress);
     saveProgress();
 
-    if (currentIndex < lessons.length - 1) {
+    if (currentIndex < activeLessons.length - 1) {
       setCurrentIndex(currentIndex + 1);
     } else {
       setShowCompletionModal(true);
@@ -168,6 +163,10 @@ export default function Learn() {
         useNativeDriver: true,
       }).start();
     }
+  };
+
+  const goToPrevious = () => {
+    if (currentIndex > 0) setCurrentIndex(currentIndex - 1);
   };
 
   const closeCompletionModal = () => {
@@ -190,9 +189,7 @@ export default function Learn() {
     });
   };
 
-  // ────────────────────────────────────────────────
-  // Confetti Particle (unchanged)
-  // ────────────────────────────────────────────────
+  // Confetti Particle
   const ConfettiParticle = ({ delay, color, startX }: any) => {
     const [particleAnim] = useState(new Animated.Value(0));
 
@@ -206,7 +203,7 @@ export default function Learn() {
               duration: 2000 + Math.random() * 1000,
               useNativeDriver: true,
             }),
-          ]),
+          ])
         ).start();
       }
     }, [showCompletionModal]);
@@ -239,111 +236,61 @@ export default function Learn() {
       <Animated.View
         style={[
           styles.confettiParticle,
-          {
-            backgroundColor: color,
-            transform: [{ translateY }, { translateX }, { rotate }],
-            opacity,
-          },
+          { backgroundColor: color, transform: [{ translateY }, { translateX }, { rotate }], opacity },
         ]}
       />
     );
   };
 
-  // Completion Modal (mostly unchanged)
   const CompletionModal = () => {
-    const confettiColors = [
-      "#6366f1",
-      "#10b981",
-      "#f59e0b",
-      "#ec4899",
-      "#8b5cf6",
-      "#14b8a6",
-    ];
+    const confettiColors = ["#6366f1", "#10b981", "#f59e0b", "#ec4899", "#8b5cf6", "#14b8a6"];
     const confettiCount = 30;
 
-    const scale = celebrationAnim.interpolate({
-      inputRange: [0, 1],
-      outputRange: [0.3, 1],
-    });
-
-    const opacity = celebrationAnim.interpolate({
-      inputRange: [0, 1],
-      outputRange: [0, 1],
-    });
+    const scale = celebrationAnim.interpolate({ inputRange: [0, 1], outputRange: [0.3, 1] });
+    const opacity = celebrationAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 1] });
 
     return (
-      <Modal
-        visible={showCompletionModal}
-        animationType="fade"
-        transparent={true}
-        onRequestClose={closeCompletionModal}
-      >
+      <Modal visible={showCompletionModal} animationType="fade" transparent onRequestClose={closeCompletionModal}>
         <View style={styles.completionOverlay}>
           {Array.from({ length: confettiCount }).map((_, i) => (
-            <ConfettiParticle
-              key={i}
-              delay={i * 50}
-              color={confettiColors[i % confettiColors.length]}
-              startX={Math.random() * width}
-            />
+            <ConfettiParticle key={i} delay={i * 50} color={confettiColors[i % confettiColors.length]} startX={Math.random() * width} />
           ))}
 
-          <Animated.View
-            style={[
-              styles.completionContent,
-              { transform: [{ scale }], opacity },
-            ]}
-          >
+          <Animated.View style={[styles.completionContent, { transform: [{ scale }], opacity }]}>
             <View style={styles.trophyContainer}>
               <Text style={styles.trophyIcon}>🏆</Text>
               <View style={styles.trophyGlow} />
             </View>
 
-            <Text style={styles.completionTitle}>Amazing Work!</Text>
+            <Text style={styles.completionTitle}>Great Job!</Text>
             <Text style={styles.completionSubtitle}>
-              You've completed all {lessons.length} {selectedLang.name} lessons!
+              You've completed your {activeLessons.length}-lesson session in {selectedLang.name}!
             </Text>
 
             <View style={styles.completionStats}>
               <View style={styles.statBox}>
-                <Text style={styles.statNumber}>{lessons.length}</Text>
-                <Text style={styles.statLabel}>Lessons</Text>
+                <Text style={styles.statNumber}>{activeLessons.length}</Text>
+                <Text style={styles.statLabel}>Session</Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statBox}>
-                <Text style={styles.statNumber}>
-                  {progress[selectedLang.key] || 0}
-                </Text>
+                <Text style={styles.statNumber}>{progress[selectedLang.key] || 0}</Text>
                 <Text style={styles.statLabel}>Total Mastered</Text>
               </View>
             </View>
 
-            <View style={styles.achievementBadge}>
-              <Text style={styles.achievementIcon}>⭐</Text>
-              <Text style={styles.achievementText}>
-                {selectedLang.name} Language Master
-              </Text>
-            </View>
-
-            <TouchableOpacity
-              style={styles.restartButton}
-              onPress={closeCompletionModal}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.restartButtonText}>Review Lessons Again</Text>
+            <TouchableOpacity style={styles.restartButton} onPress={closeCompletionModal}>
+              <Text style={styles.restartButtonText}>Review This Session</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.continueButton}
               onPress={() => {
                 closeCompletionModal();
-                setShowLanguagePicker(true);
+                setShowSessionPicker(true);
               }}
-              activeOpacity={0.8}
             >
-              <Text style={styles.continueButtonText}>
-                Learn Another Language
-              </Text>
+              <Text style={styles.continueButtonText}>New Session</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -353,7 +300,7 @@ export default function Learn() {
                 router.push("/suggest");
               }}
             >
-              <Text style={styles.shareButtonText}>✨ Contribute Phrases</Text>
+              <Text style={styles.shareButtonText}>✨ Suggest More Phrases</Text>
             </TouchableOpacity>
           </Animated.View>
         </View>
@@ -365,24 +312,16 @@ export default function Learn() {
     const [search, setSearch] = useState("");
 
     const filtered = languageOptions.filter((l) =>
-      l.name.toLowerCase().includes(search.toLowerCase()),
+      l.name.toLowerCase().includes(search.toLowerCase())
     );
 
     return (
-      <Modal
-        visible={showLanguagePicker}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setShowLanguagePicker(false)}
-      >
+      <Modal visible={showLanguagePicker} animationType="slide" transparent onRequestClose={() => setShowLanguagePicker(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Choose Language</Text>
-              <TouchableOpacity
-                onPress={() => setShowLanguagePicker(false)}
-                style={styles.modalCloseBtn}
-              >
+              <TouchableOpacity onPress={() => setShowLanguagePicker(false)} style={styles.modalCloseBtn}>
                 <Text style={styles.modalCloseIcon}>✕</Text>
               </TouchableOpacity>
             </View>
@@ -401,22 +340,18 @@ export default function Learn() {
               showsVerticalScrollIndicator={false}
               renderItem={({ item }) => (
                 <TouchableOpacity
-                  style={[
-                    styles.langItem,
-                    item.key === selectedLang.key && styles.langItemSelected,
-                  ]}
+                  style={[styles.langItem, item.key === selectedLang.key && styles.langItemSelected]}
                   onPress={() => {
                     setSelectedLang(item);
                     setCurrentIndex(0);
                     setShowLanguagePicker(false);
+                    setShowSessionPicker(true);
                     setSearch("");
                   }}
                 >
                   <Image source={{ uri: item.flag }} style={styles.langFlag} />
                   <Text style={styles.langName}>{item.name}</Text>
-                  {item.key === selectedLang.key && (
-                    <Text style={styles.checkmark}>✓</Text>
-                  )}
+                  {item.key === selectedLang.key && <Text style={styles.checkmark}>✓</Text>}
                 </TouchableOpacity>
               )}
             />
@@ -426,27 +361,66 @@ export default function Learn() {
     );
   };
 
-  const progressPercentage = lessons.length
-    ? ((currentIndex + 1) / lessons.length) * 100
-    : 0;
+  const SessionPicker = () => {
+    const options: Array<number | "all"> = [5, 10, 15, 20, 25, 30, 40, 50, 75, 100, "all"];
+
+    return (
+      <Modal visible={showSessionPicker} transparent animationType="slide" onRequestClose={() => setShowSessionPicker(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.sessionModalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>How many lessons today?</Text>
+              <TouchableOpacity onPress={() => setShowSessionPicker(false)}>
+                <Text style={styles.modalCloseIcon}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.sessionScroll} contentContainerStyle={styles.sessionScrollContent}>
+              {options.map((opt) => {
+                const isSelected = sessionLength === opt;
+                const label =
+                  opt === "all"
+                    ? allLessons.length > 0
+                      ? `All (${allLessons.length} lessons)`
+                      : "All (0 lessons)"
+                    : `${opt} lessons`;
+
+                return (
+                  <TouchableOpacity
+                    key={String(opt)}
+                    style={[styles.sessionOption, isSelected && styles.sessionOptionSelected]}
+                    onPress={() => {
+                      setSessionLength(opt);
+                      applySessionLength(allLessons, opt);
+                      setShowSessionPicker(false);
+                    }}
+                  >
+                    <Text style={[styles.sessionOptionText, isSelected && styles.sessionOptionTextSelected]}>
+                      {label}
+                    </Text>
+                    {isSelected && <Text style={styles.checkmarkSelected}>✓</Text>}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+    );
+  };
+
+  const progressPercentage = activeLessons.length ? ((currentIndex + 1) / activeLessons.length) * 100 : 0;
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={styles.backButton}
-        >
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Text style={styles.backIcon}>←</Text>
         </TouchableOpacity>
 
         <View style={styles.headerCenter}>
           <Text style={styles.headerSubtitle}>Learn</Text>
-          <TouchableOpacity
-            onPress={() => setShowLanguagePicker(true)}
-            style={styles.languageSelector}
-          >
+          <TouchableOpacity onPress={() => setShowLanguagePicker(true)} style={styles.languageSelector}>
             <Text style={styles.headerTitle}>{selectedLang.name}</Text>
             <Text style={styles.dropdownIcon}>▼</Text>
           </TouchableOpacity>
@@ -455,38 +429,26 @@ export default function Learn() {
         <View style={styles.headerRight}>
           <View style={styles.streakBadge}>
             <Text style={styles.streakIcon}>🔥</Text>
-            <Text style={styles.streakCount}>
-              {progress[selectedLang.key] || 0}
-            </Text>
+            <Text style={styles.streakCount}>{progress[selectedLang.key] || 0}</Text>
           </View>
         </View>
       </View>
 
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Progress Bar */}
-        <View style={styles.progressContainer}>
-          <View style={styles.progressHeader}>
-            <Text style={styles.progressLabel}>
-              Lesson {currentIndex + 1} of {lessons.length || 0}
-            </Text>
-            <Text style={styles.progressPercent}>
-              {Math.round(progressPercentage)}%
-            </Text>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        {activeLessons.length > 0 && (
+          <View style={styles.progressContainer}>
+            <View style={styles.progressHeader}>
+              <Text style={styles.progressLabel}>
+                Lesson {currentIndex + 1} of {activeLessons.length}
+              </Text>
+              <Text style={styles.progressPercent}>{Math.round(progressPercentage)}%</Text>
+            </View>
+            <View style={styles.progressBarOuter}>
+              <View style={[styles.progressBarInner, { width: `${progressPercentage}%` }]} />
+            </View>
           </View>
-          <View style={styles.progressBarOuter}>
-            <View
-              style={[
-                styles.progressBarInner,
-                { width: `${progressPercentage}%` },
-              ]}
-            />
-          </View>
-        </View>
+        )}
 
-        {/* Lesson Content */}
         {loading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#10b981" />
@@ -509,74 +471,58 @@ export default function Learn() {
             <View style={styles.lessonContent}>
               <Text style={styles.questionLabel}>English</Text>
               <Text style={styles.englishPhrase}>{currentLesson.english}</Text>
-
               <View style={styles.divider} />
-
-              <Text style={styles.answerLabel}>
-                {selectedLang.name} Translation
-              </Text>
+              <Text style={styles.answerLabel}>{selectedLang.name} Translation</Text>
               <Text style={styles.localPhrase}>{currentLesson.local}</Text>
             </View>
 
             <View style={styles.audioRow}>
-              <TouchableOpacity
-                style={styles.audioBtn}
-                onPress={() => speak(currentLesson.english, "en")}
-              >
+              <TouchableOpacity style={styles.audioBtn} onPress={() => speak(currentLesson.english, "en")}>
                 <Text style={styles.audioIcon}>🔊</Text>
                 <Text style={styles.audioBtnText}>English</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity
-                style={[styles.audioBtn, styles.audioBtnPrimary]}
-                onPress={() =>
-                  speak(currentLesson.local, currentLesson.audioLang)
-                }
-              >
+              <TouchableOpacity style={[styles.audioBtn, styles.audioBtnPrimary]} onPress={() => speak(currentLesson.local, currentLesson.audioLang)}>
                 <Text style={styles.audioIcon}>🔊</Text>
-                <Text style={styles.audioBtnTextPrimary}>
-                  {selectedLang.name}
-                </Text>
+                <Text style={styles.audioBtnTextPrimary}>{selectedLang.name}</Text>
               </TouchableOpacity>
             </View>
 
             <View style={styles.explanationBox}>
               <Text style={styles.explanationLabel}>💡 Context</Text>
-              <Text style={styles.explanation}>
-                {currentLesson.explanation}
-              </Text>
+              <Text style={styles.explanation}>{currentLesson.explanation}</Text>
             </View>
 
-            <TouchableOpacity
-              style={styles.learnedBtn}
-              onPress={markAsLearned}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.learnedText}>
-                {currentIndex < lessons.length - 1
-                  ? "Got it! Next Lesson →"
-                  : "Complete & Restart"}
-              </Text>
-            </TouchableOpacity>
+            <View style={styles.navigationButtonsRow}>
+              <TouchableOpacity
+                style={[styles.navButton, styles.prevButton, currentIndex === 0 && styles.disabledButton]}
+                onPress={goToPrevious}
+                disabled={currentIndex === 0}
+              >
+                <Text style={styles.navButtonText}>← Previous</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.learnedBtn} onPress={markAsLearned}>
+                <Text style={styles.learnedText}>
+                  {currentIndex < activeLessons.length - 1 ? "Next →" : "Finish Session"}
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
         ) : (
           <View style={styles.emptyState}>
             <Text style={styles.emptyIcon}>📚</Text>
             <Text style={styles.emptyTitle}>No Lessons Yet</Text>
             <Text style={styles.emptyText}>
-              No approved lessons for {selectedLang.name} yet.{"\n"}
-              Help grow the collection by suggesting phrases!
+              No approved lessons for {selectedLang.name} yet.{'\n'}
+              Suggest some phrases to help grow the collection!
             </Text>
-            <TouchableOpacity
-              style={styles.suggestButton}
-              onPress={() => router.push("/suggest")}
-            >
+            <TouchableOpacity style={styles.suggestButton} onPress={() => router.push("/suggest")}>
               <Text style={styles.suggestButtonText}>Suggest Phrases</Text>
             </TouchableOpacity>
           </View>
         )}
 
-        {/* Stats */}
         {Object.keys(progress).length > 0 && (
           <View style={styles.statsCard}>
             <View style={styles.statsHeader}>
@@ -591,15 +537,10 @@ export default function Learn() {
                 .slice(0, 8)
                 .map((lang) => (
                   <View key={lang.key} style={styles.statItem}>
-                    <Image
-                      source={{ uri: lang.flag }}
-                      style={styles.statFlag}
-                    />
+                    <Image source={{ uri: lang.flag }} style={styles.statFlag} />
                     <View style={styles.statInfo}>
                       <Text style={styles.statLang}>{lang.name}</Text>
-                      <Text style={styles.statCount}>
-                        {progress[lang.key]} lessons
-                      </Text>
+                      <Text style={styles.statCount}>{progress[lang.key]} lessons</Text>
                     </View>
                   </View>
                 ))}
@@ -607,12 +548,7 @@ export default function Learn() {
           </View>
         )}
 
-        {/* CTA */}
-        <TouchableOpacity
-          style={styles.ctaButton}
-          onPress={() => router.push("/suggest")}
-          activeOpacity={0.9}
-        >
+        <TouchableOpacity style={styles.ctaButton} onPress={() => router.push("/suggest")}>
           <Text style={styles.ctaIcon}>✨</Text>
           <Text style={styles.ctaText}>Suggest New Phrases</Text>
         </TouchableOpacity>
@@ -622,17 +558,13 @@ export default function Learn() {
 
       <CompletionModal />
       <LanguagePicker />
+      <SessionPicker />
     </SafeAreaView>
   );
 }
 
-// Styles (mostly unchanged, just minor tweaks for consistency)
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#f5f7fa",
-  },
-
+  container: { flex: 1, backgroundColor: "#f5f7fa" },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -648,46 +580,14 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
   },
-  backButton: {
-    width: 44,
-    height: 44,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  backIcon: {
-    fontSize: 24,
-    color: "#1f2937",
-    fontWeight: "600",
-  },
-  headerCenter: {
-    flex: 1,
-    alignItems: "center",
-  },
-  headerSubtitle: {
-    fontSize: 12,
-    color: "#6b7280",
-    fontWeight: "500",
-    marginBottom: 2,
-  },
-  languageSelector: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#111827",
-  },
-  dropdownIcon: {
-    fontSize: 10,
-    color: "#10b981",
-    marginTop: 2,
-  },
-  headerRight: {
-    width: 44,
-    alignItems: "flex-end",
-  },
+  backButton: { width: 44, height: 44, justifyContent: "center", alignItems: "center" },
+  backIcon: { fontSize: 24, color: "#1f2937", fontWeight: "600" },
+  headerCenter: { flex: 1, alignItems: "center" },
+  headerSubtitle: { fontSize: 12, color: "#6b7280", fontWeight: "500", marginBottom: 2 },
+  languageSelector: { flexDirection: "row", alignItems: "center", gap: 6 },
+  headerTitle: { fontSize: 18, fontWeight: "700", color: "#111827" },
+  dropdownIcon: { fontSize: 10, color: "#10b981", marginTop: 2 },
+  headerRight: { width: 44, alignItems: "flex-end" },
   streakBadge: {
     flexDirection: "row",
     alignItems: "center",
@@ -697,19 +597,10 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     gap: 4,
   },
-  streakIcon: {
-    fontSize: 14,
-  },
-  streakCount: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#065f46",
-  },
+  streakIcon: { fontSize: 14 },
+  streakCount: { fontSize: 13, fontWeight: "700", color: "#065f46" },
 
-  scrollContent: {
-    padding: 16,
-    paddingBottom: 40,
-  },
+  scrollContent: { padding: 16, paddingBottom: 40 },
 
   progressContainer: {
     marginBottom: 20,
@@ -722,33 +613,11 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
-  progressHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  progressLabel: {
-    fontSize: 14,
-    color: "#374151",
-    fontWeight: "600",
-  },
-  progressPercent: {
-    fontSize: 14,
-    color: "#10b981",
-    fontWeight: "700",
-  },
-  progressBarOuter: {
-    height: 8,
-    backgroundColor: "#e5e7eb",
-    borderRadius: 8,
-    overflow: "hidden",
-  },
-  progressBarInner: {
-    height: "100%",
-    backgroundColor: "#10b981",
-    borderRadius: 8,
-  },
+  progressHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
+  progressLabel: { fontSize: 14, color: "#374151", fontWeight: "600" },
+  progressPercent: { fontSize: 14, color: "#10b981", fontWeight: "700" },
+  progressBarOuter: { height: 8, backgroundColor: "#e5e7eb", borderRadius: 8, overflow: "hidden" },
+  progressBarInner: { height: "100%", backgroundColor: "#10b981", borderRadius: 8 },
 
   lessonCard: {
     backgroundColor: "#ffffff",
@@ -769,56 +638,15 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     marginBottom: 20,
   },
-  categoryText: {
-    fontSize: 12,
-    color: "#6b7280",
-    fontWeight: "600",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
-  lessonContent: {
-    marginBottom: 24,
-  },
-  questionLabel: {
-    fontSize: 12,
-    color: "#9ca3af",
-    fontWeight: "600",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: 8,
-  },
-  englishPhrase: {
-    fontSize: 18,
-    color: "#374151",
-    marginBottom: 20,
-    lineHeight: 26,
-    fontWeight: "500",
-  },
-  divider: {
-    height: 1,
-    backgroundColor: "#e5e7eb",
-    marginBottom: 20,
-  },
-  answerLabel: {
-    fontSize: 12,
-    color: "#9ca3af",
-    fontWeight: "600",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: 12,
-  },
-  localPhrase: {
-    fontSize: 28,
-    fontWeight: "700",
-    color: "#10b981",
-    lineHeight: 38,
-  },
+  categoryText: { fontSize: 12, color: "#6b7280", fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.5 },
+  lessonContent: { marginBottom: 24 },
+  questionLabel: { fontSize: 12, color: "#9ca3af", fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 },
+  englishPhrase: { fontSize: 18, color: "#374151", marginBottom: 20, lineHeight: 26, fontWeight: "500" },
+  divider: { height: 1, backgroundColor: "#e5e7eb", marginBottom: 20 },
+  answerLabel: { fontSize: 12, color: "#9ca3af", fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 12 },
+  localPhrase: { fontSize: 28, fontWeight: "700", color: "#10b981", lineHeight: 38 },
 
-  audioRow: {
-    flexDirection: "row",
-    gap: 12,
-    marginBottom: 20,
-  },
+  audioRow: { flexDirection: "row", gap: 12, marginBottom: 20 },
   audioBtn: {
     flex: 1,
     flexDirection: "row",
@@ -832,23 +660,10 @@ const styles = StyleSheet.create({
     borderColor: "#e5e7eb",
     gap: 8,
   },
-  audioBtnPrimary: {
-    backgroundColor: "#ecfdf5",
-    borderColor: "#a7f3d0",
-  },
-  audioIcon: {
-    fontSize: 18,
-  },
-  audioBtnText: {
-    fontSize: 14,
-    color: "#374151",
-    fontWeight: "600",
-  },
-  audioBtnTextPrimary: {
-    fontSize: 14,
-    color: "#065f46",
-    fontWeight: "700",
-  },
+  audioBtnPrimary: { backgroundColor: "#ecfdf5", borderColor: "#a7f3d0" },
+  audioIcon: { fontSize: 18 },
+  audioBtnText: { fontSize: 14, color: "#374151", fontWeight: "600" },
+  audioBtnTextPrimary: { fontSize: 14, color: "#065f46", fontWeight: "700" },
 
   explanationBox: {
     backgroundColor: "#ecfdf5",
@@ -858,19 +673,16 @@ const styles = StyleSheet.create({
     borderLeftWidth: 4,
     borderLeftColor: "#10b981",
   },
-  explanationLabel: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#065f46",
-    marginBottom: 6,
-  },
-  explanation: {
-    fontSize: 14,
-    color: "#064e3b",
-    lineHeight: 20,
-  },
+  explanationLabel: { fontSize: 13, fontWeight: "700", color: "#065f46", marginBottom: 6 },
+  explanation: { fontSize: 14, color: "#064e3b", lineHeight: 20 },
 
+  navigationButtonsRow: { flexDirection: "row", gap: 12 },
+  navButton: { flex: 1, paddingVertical: 16, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+  prevButton: { backgroundColor: "#6b7280" },
+  disabledButton: { backgroundColor: "#d1d5db", opacity: 0.6 },
+  navButtonText: { color: "#ffffff", fontSize: 16, fontWeight: "700" },
   learnedBtn: {
+    flex: 1,
     backgroundColor: "#10b981",
     borderRadius: 14,
     paddingVertical: 16,
@@ -881,84 +693,23 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
-  learnedText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "700",
-  },
+  learnedText: { color: "#fff", fontSize: 16, fontWeight: "700" },
 
-  loadingContainer: {
-    alignItems: "center",
-    paddingVertical: 60,
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 15,
-    color: "#6b7280",
-    fontWeight: "500",
-  },
+  loadingContainer: { alignItems: "center", paddingVertical: 60 },
+  loadingText: { marginTop: 16, fontSize: 15, color: "#6b7280", fontWeight: "500" },
 
-  errorContainer: {
-    alignItems: "center",
-    paddingVertical: 40,
-    paddingHorizontal: 20,
-  },
-  errorIcon: {
-    fontSize: 48,
-    marginBottom: 16,
-  },
-  errorText: {
-    fontSize: 15,
-    color: "#ef4444",
-    textAlign: "center",
-    lineHeight: 22,
-    marginBottom: 20,
-  },
-  retryButton: {
-    backgroundColor: "#10b981",
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 12,
-  },
-  retryText: {
-    color: "#fff",
-    fontSize: 15,
-    fontWeight: "600",
-  },
+  errorContainer: { alignItems: "center", paddingVertical: 40, paddingHorizontal: 20 },
+  errorIcon: { fontSize: 48, marginBottom: 16 },
+  errorText: { fontSize: 15, color: "#ef4444", textAlign: "center", lineHeight: 22, marginBottom: 20 },
+  retryButton: { backgroundColor: "#10b981", paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 },
+  retryText: { color: "#fff", fontSize: 15, fontWeight: "600" },
 
-  emptyState: {
-    alignItems: "center",
-    paddingVertical: 50,
-    paddingHorizontal: 30,
-  },
-  emptyIcon: {
-    fontSize: 64,
-    marginBottom: 20,
-  },
-  emptyTitle: {
-    fontSize: 22,
-    fontWeight: "700",
-    color: "#111827",
-    marginBottom: 12,
-  },
-  emptyText: {
-    fontSize: 15,
-    color: "#6b7280",
-    textAlign: "center",
-    lineHeight: 24,
-    marginBottom: 28,
-  },
-  suggestButton: {
-    backgroundColor: "#10b981",
-    paddingHorizontal: 28,
-    paddingVertical: 14,
-    borderRadius: 12,
-  },
-  suggestButtonText: {
-    color: "#fff",
-    fontSize: 15,
-    fontWeight: "700",
-  },
+  emptyState: { alignItems: "center", paddingVertical: 50, paddingHorizontal: 30 },
+  emptyIcon: { fontSize: 64, marginBottom: 20 },
+  emptyTitle: { fontSize: 22, fontWeight: "700", color: "#111827", marginBottom: 12 },
+  emptyText: { fontSize: 15, color: "#6b7280", textAlign: "center", lineHeight: 24, marginBottom: 28 },
+  suggestButton: { backgroundColor: "#10b981", paddingHorizontal: 28, paddingVertical: 14, borderRadius: 12 },
+  suggestButtonText: { color: "#fff", fontSize: 15, fontWeight: "700" },
 
   statsCard: {
     backgroundColor: "#ffffff",
@@ -971,25 +722,10 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
   },
-  statsHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  statsTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#111827",
-  },
-  totalLessons: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#10b981",
-  },
-  statsGrid: {
-    gap: 12,
-  },
+  statsHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
+  statsTitle: { fontSize: 16, fontWeight: "700", color: "#111827" },
+  totalLessons: { fontSize: 13, fontWeight: "600", color: "#10b981" },
+  statsGrid: { gap: 12 },
   statItem: {
     flexDirection: "row",
     alignItems: "center",
@@ -999,24 +735,10 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     gap: 12,
   },
-  statFlag: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-  },
-  statInfo: {
-    flex: 1,
-  },
-  statLang: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#111827",
-    marginBottom: 2,
-  },
-  statCount: {
-    fontSize: 12,
-    color: "#6b7280",
-  },
+  statFlag: { width: 32, height: 32, borderRadius: 16 },
+  statInfo: { flex: 1 },
+  statLang: { fontSize: 14, fontWeight: "600", color: "#111827", marginBottom: 2 },
+  statCount: { fontSize: 12, color: "#6b7280" },
 
   ctaButton: {
     backgroundColor: "#10b981",
@@ -1032,33 +754,13 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
-  ctaIcon: {
-    fontSize: 20,
-  },
-  ctaText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "700",
-  },
+  ctaIcon: { fontSize: 20 },
+  ctaText: { color: "#fff", fontSize: 16, fontWeight: "700" },
 
-  bottomSpacer: {
-    height: 20,
-  },
+  bottomSpacer: { height: 20 },
 
-  // Modal styles (unchanged)
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.6)",
-    justifyContent: "flex-end",
-  },
-  modalContent: {
-    backgroundColor: "#fff",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingTop: 8,
-    paddingBottom: 40,
-    maxHeight: "85%",
-  },
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.65)", justifyContent: "flex-end" },
+  modalContent: { backgroundColor: "#fff", borderTopLeftRadius: 28, borderTopRightRadius: 28, maxHeight: "85%" },
   modalHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -1068,11 +770,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#f3f4f6",
   },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#111827",
-  },
+  modalTitle: { fontSize: 20, fontWeight: "700", color: "#111827" },
   modalCloseBtn: {
     width: 32,
     height: 32,
@@ -1081,11 +779,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  modalCloseIcon: {
-    fontSize: 18,
-    color: "#6b7280",
-    fontWeight: "600",
-  },
+  modalCloseIcon: { fontSize: 18, color: "#6b7280", fontWeight: "600" },
   searchInput: {
     marginHorizontal: 20,
     marginTop: 16,
@@ -1107,40 +801,33 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#f3f4f6",
   },
-  langItemSelected: {
-    backgroundColor: "#ecfdf5",
-  },
-  langFlag: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    marginRight: 16,
-  },
-  langName: {
-    flex: 1,
-    fontSize: 16,
-    color: "#111827",
-    fontWeight: "500",
-  },
-  checkmark: {
-    fontSize: 20,
-    color: "#10b981",
-    fontWeight: "700",
-  },
+  langItemSelected: { backgroundColor: "#ecfdf5" },
+  langFlag: { width: 40, height: 40, borderRadius: 20, marginRight: 16 },
+  langName: { flex: 1, fontSize: 16, color: "#111827", fontWeight: "500" },
+  checkmark: { fontSize: 20, color: "#10b981", fontWeight: "700" },
 
-  completionOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.85)",
-    justifyContent: "center",
+  sessionModalContent: { backgroundColor: "#fff", borderTopLeftRadius: 28, borderTopRightRadius: 28, maxHeight: "80%" },
+  sessionScroll: { maxHeight: height * 0.55 },
+  sessionScrollContent: { paddingHorizontal: 20, paddingVertical: 16, paddingBottom: 40 },
+  sessionOption: {
+    flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
-    padding: 20,
+    paddingVertical: 18,
+    paddingHorizontal: 24,
+    backgroundColor: "#f9fafb",
+    borderRadius: 16,
+    marginVertical: 6,
+    borderWidth: 1.5,
+    borderColor: "transparent",
   },
-  confettiParticle: {
-    position: "absolute",
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
+  sessionOptionSelected: { backgroundColor: "#ecfdf5", borderColor: "#10b981" },
+  sessionOptionText: { fontSize: 17, color: "#374151", fontWeight: "500" },
+  sessionOptionTextSelected: { color: "#065f46", fontWeight: "700" },
+  checkmarkSelected: { fontSize: 26, color: "#10b981", fontWeight: "bold" },
+
+  completionOverlay: { flex: 1, backgroundColor: "rgba(0, 0, 0, 0.85)", justifyContent: "center", alignItems: "center", padding: 20 },
+  confettiParticle: { position: "absolute", width: 10, height: 10, borderRadius: 5 },
   completionContent: {
     backgroundColor: "#ffffff",
     borderRadius: 32,
@@ -1154,14 +841,8 @@ const styles = StyleSheet.create({
     shadowRadius: 30,
     elevation: 10,
   },
-  trophyContainer: {
-    position: "relative",
-    marginBottom: 24,
-  },
-  trophyIcon: {
-    fontSize: 80,
-    textAlign: "center",
-  },
+  trophyContainer: { position: "relative", marginBottom: 24 },
+  trophyIcon: { fontSize: 80, textAlign: "center" },
   trophyGlow: {
     position: "absolute",
     top: 0,
@@ -1173,21 +854,8 @@ const styles = StyleSheet.create({
     opacity: 0.2,
     transform: [{ scale: 1.5 }],
   },
-  completionTitle: {
-    fontSize: 32,
-    fontWeight: "800",
-    color: "#111827",
-    marginBottom: 12,
-    textAlign: "center",
-  },
-  completionSubtitle: {
-    fontSize: 16,
-    color: "#6b7280",
-    textAlign: "center",
-    lineHeight: 24,
-    marginBottom: 32,
-    paddingHorizontal: 20,
-  },
+  completionTitle: { fontSize: 32, fontWeight: "800", color: "#111827", marginBottom: 12, textAlign: "center" },
+  completionSubtitle: { fontSize: 16, color: "#6b7280", textAlign: "center", lineHeight: 24, marginBottom: 32, paddingHorizontal: 20 },
   completionStats: {
     flexDirection: "row",
     alignItems: "center",
@@ -1197,45 +865,11 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     width: "100%",
   },
-  statBox: {
-    flex: 1,
-    alignItems: "center",
-  },
-  statNumber: {
-    fontSize: 36,
-    fontWeight: "800",
-    color: "#10b981",
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 13,
-    color: "#6b7280",
-    fontWeight: "600",
-  },
-  statDivider: {
-    width: 1,
-    height: 40,
-    backgroundColor: "#e5e7eb",
-    marginHorizontal: 16,
-  },
-  achievementBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#ecfdf5",
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 100,
-    marginBottom: 32,
-    gap: 8,
-  },
-  achievementIcon: {
-    fontSize: 20,
-  },
-  achievementText: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#065f46",
-  },
+  statBox: { flex: 1, alignItems: "center" },
+  statNumber: { fontSize: 36, fontWeight: "800", color: "#10b981", marginBottom: 4 },
+  statLabel: { fontSize: 13, color: "#6b7280", fontWeight: "600" },
+  statDivider: { width: 1, height: 40, backgroundColor: "#e5e7eb", marginHorizontal: 16 },
+
   restartButton: {
     backgroundColor: "#10b981",
     borderRadius: 16,
@@ -1250,11 +884,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
-  restartButtonText: {
-    color: "#ffffff",
-    fontSize: 16,
-    fontWeight: "700",
-  },
+  restartButtonText: { color: "#ffffff", fontSize: 16, fontWeight: "700" },
   continueButton: {
     backgroundColor: "#6366f1",
     borderRadius: 16,
@@ -1269,21 +899,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
-  continueButtonText: {
-    color: "#ffffff",
-    fontSize: 16,
-    fontWeight: "700",
-  },
-  shareButton: {
-    backgroundColor: "transparent",
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    width: "100%",
-    alignItems: "center",
-  },
-  shareButtonText: {
-    color: "#6b7280",
-    fontSize: 15,
-    fontWeight: "600",
-  },
+  continueButtonText: { color: "#ffffff", fontSize: 16, fontWeight: "700" },
+  shareButton: { backgroundColor: "transparent", paddingVertical: 12, paddingHorizontal: 24, width: "100%", alignItems: "center" },
+  shareButtonText: { color: "#6b7280", fontSize: 15, fontWeight: "600" },
 });
