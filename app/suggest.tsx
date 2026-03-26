@@ -1,4 +1,5 @@
 "use client";
+
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
@@ -50,6 +51,13 @@ const languages = [
   // Optional / extra
   { code: "rw", name: "Kinyarwanda" },
 ];
+
+type AllowedUser = {
+  id: number;
+  name: string;
+  email: string;
+};
+
 export default function SuggestScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{
@@ -57,48 +65,65 @@ export default function SuggestScreen() {
     langName?: string;
   }>();
 
-  // Initialize from params if provided, otherwise default to first language
   const [selectedLang, setSelectedLang] = useState<{
     code: string;
     name: string;
   }>(
     params.langKey && params.langName
       ? { code: params.langKey as string, name: params.langName as string }
-      : languages[0], // fallback to English
+      : languages[0],
   );
 
   const [localPhrase, setLocalPhrase] = useState("");
   const [englishMeaning, setEnglishMeaning] = useState("");
   const [context, setContext] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [userName, setUserName] = useState<string | null>(null);
   const [loadingUser, setLoadingUser] = useState(true);
+  const [user, setUser] = useState<AllowedUser | null>(null);
 
   useEffect(() => {
     const loadUser = async () => {
       try {
         const stored = await AsyncStorage.getItem("user");
+
         if (stored) {
           const parsed = JSON.parse(stored);
-          const name = parsed?.full_name?.trim() || "User";
-          if (name) {
-            setUserName(name);
+          const id = Number(parsed?.id);
+
+          if (id === 1) {
+            setUser({
+              id: 1,
+              name: "adyems",
+              email: "adyemsgodlove@gmail.com",
+            });
+          } else if (id === 2) {
+            setUser({
+              id: 2,
+              name: "Joshua Ishaya Mamza",
+              email: "josh1dille@gmail.com",
+            });
+          } else {
+            setUser(null);
           }
+        } else {
+          setUser(null);
         }
       } catch (err) {
         console.warn("Failed to load user", err);
+        setUser(null);
       } finally {
         setLoadingUser(false);
       }
     };
+
     loadUser();
   }, []);
 
   const handleSubmit = async () => {
-    if (!userName || userName === "User") {
+    if (!user) {
       Alert.alert(
-        "Please log in",
-        "You need to be logged in to submit suggestions.",
+        "Access denied",
+        "Only Admins can submit suggestions from this screen.",
         [
           { text: "Cancel" },
           { text: "Go to Login", onPress: () => router.replace("/log") },
@@ -136,12 +161,15 @@ export default function SuggestScreen() {
           local_phrase: trimmedPhrase,
           english_meaning: trimmedMeaning,
           context: trimmedContext || null,
-          full_name: userName,
+          full_name: user.name,
+          email: user.email,
+          user_id: user.id,
         }),
       });
 
       const text = await res.text();
       let data;
+
       try {
         data = JSON.parse(text);
       } catch (parseErr) {
@@ -203,7 +231,6 @@ export default function SuggestScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Language Switcher */}
         <View style={styles.langSwitcher}>
           <Text style={styles.langSwitcherTitle}>Suggesting for:</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -232,22 +259,30 @@ export default function SuggestScreen() {
         </View>
 
         <Text style={styles.intro}>
-          {userName ? `Hi ${userName},` : "Hello!"} Help grow the{" "}
+          {user ? `Hi ${user.name},` : "Hello!"} Help grow the{" "}
           <Text style={{ fontWeight: "bold", color: "#10b981" }}>
             {selectedLang.name}
           </Text>{" "}
           dictionary.
         </Text>
 
-        {!userName && (
+        {!user && (
           <View style={styles.warningCard}>
             <Text style={styles.warningText}>
-              You're not logged in — suggestions won't be linked to your
-              account.
+              Only approved users can submit suggestions on this screen.
             </Text>
             <TouchableOpacity onPress={() => router.replace("/log")}>
               <Text style={styles.loginLink}>Log in now →</Text>
             </TouchableOpacity>
+          </View>
+        )}
+
+        {user && (
+          <View style={styles.userCard}>
+            <Text style={styles.userCardTitle}>Approved account</Text>
+            <Text style={styles.userCardText}>Name: {user.name}</Text>
+            <Text style={styles.userCardText}>Email: {user.email}</Text>
+            <Text style={styles.userCardText}>User ID: {user.id}</Text>
           </View>
         )}
 
@@ -269,7 +304,7 @@ export default function SuggestScreen() {
             multiline
             numberOfLines={3}
             maxLength={500}
-            editable={!submitting}
+            editable={!submitting && !!user}
           />
 
           <Text style={styles.label}>English meaning</Text>
@@ -281,7 +316,7 @@ export default function SuggestScreen() {
             multiline
             numberOfLines={2}
             maxLength={300}
-            editable={!submitting}
+            editable={!submitting && !!user}
           />
 
           <Text style={styles.label}>Context / example (optional)</Text>
@@ -293,16 +328,16 @@ export default function SuggestScreen() {
             multiline
             numberOfLines={4}
             maxLength={800}
-            editable={!submitting}
+            editable={!submitting && !!user}
           />
 
           <TouchableOpacity
             style={[
               styles.submitButton,
-              (submitting || !userName) && styles.submitButtonDisabled,
+              (submitting || !user) && styles.submitButtonDisabled,
             ]}
             onPress={handleSubmit}
-            disabled={submitting || !userName}
+            disabled={submitting || !user}
           >
             {submitting ? (
               <ActivityIndicator color="#fff" />
@@ -322,6 +357,7 @@ export default function SuggestScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f8f9fa" },
+
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -331,24 +367,38 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderColor: "#eee",
   },
-  backIcon: { fontSize: 32, color: "#333" },
-  headerTitle: { fontSize: 20, fontWeight: "bold" },
 
-  scrollContent: { padding: 20, paddingBottom: 40 },
+  backIcon: {
+    fontSize: 32,
+    color: "#333",
+  },
+
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+  },
+
+  scrollContent: {
+    padding: 20,
+    paddingBottom: 40,
+  },
 
   langSwitcher: {
     marginBottom: 20,
   },
+
   langSwitcherTitle: {
     fontSize: 15,
     fontWeight: "600",
     color: "#555",
     marginBottom: 10,
   },
+
   langChips: {
     flexDirection: "row",
     gap: 10,
   },
+
   langChip: {
     paddingVertical: 8,
     paddingHorizontal: 16,
@@ -357,10 +407,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#ccc",
   },
+
   langChipSelected: {
     backgroundColor: "#10b981",
     borderColor: "#10b981",
   },
+
   langChipText: {
     fontSize: 14,
     fontWeight: "600",
@@ -375,6 +427,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontWeight: "500",
   },
+
   warningCard: {
     backgroundColor: "#fef3c7",
     borderRadius: 12,
@@ -384,16 +437,42 @@ const styles = StyleSheet.create({
     borderColor: "#f59e0b",
     alignItems: "center",
   },
+
   warningText: {
     color: "#92400e",
     fontSize: 15,
     marginBottom: 12,
+    textAlign: "center",
   },
+
   loginLink: {
     color: "#2563eb",
     fontWeight: "600",
     fontSize: 15,
   },
+
+  userCard: {
+    backgroundColor: "#ecfdf5",
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "#10b981",
+  },
+
+  userCardTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#065f46",
+    marginBottom: 8,
+  },
+
+  userCardText: {
+    fontSize: 14,
+    color: "#065f46",
+    marginBottom: 4,
+  },
+
   formCard: {
     backgroundColor: "#fff",
     borderRadius: 16,
@@ -403,6 +482,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
   },
+
   label: {
     fontSize: 15,
     fontWeight: "600",
@@ -410,6 +490,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     marginTop: 16,
   },
+
   input: {
     borderWidth: 1,
     borderColor: "#ddd",
@@ -419,8 +500,13 @@ const styles = StyleSheet.create({
     minHeight: 60,
     textAlignVertical: "top",
     marginBottom: 8,
+    backgroundColor: "#fff",
   },
-  contextInput: { minHeight: 100 },
+
+  contextInput: {
+    minHeight: 100,
+  },
+
   submitButton: {
     backgroundColor: "#10b981",
     borderRadius: 12,
@@ -428,15 +514,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 28,
   },
+
   submitButtonDisabled: {
     backgroundColor: "#94d3b5",
     opacity: 0.7,
   },
+
   submitText: {
     color: "#fff",
     fontSize: 17,
     fontWeight: "bold",
   },
+
   note: {
     marginTop: 28,
     fontSize: 14,
