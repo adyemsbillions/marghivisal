@@ -396,6 +396,7 @@ export default function LogScreen() {
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry={!showPassword}
+                  autoCapitalize="none"
                   editable={!loading}
                 />
                 <TouchableOpacity
